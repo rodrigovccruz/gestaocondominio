@@ -72,7 +72,7 @@ function BoardContent({
       <Panel title="Despesas">
         {month.expenses.length ? (
           <div className="table-wrap">
-            <table className="grid">
+            <table className="data-table">
               <tbody>
                 {month.expenses.map(e => (
                   <tr key={e.id}>

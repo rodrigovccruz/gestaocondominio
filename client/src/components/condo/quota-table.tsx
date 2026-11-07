@@ -12,7 +12,7 @@ export function QuotaTable({ quotas }: { quotas: QuotaRow[] }) {
 
   return (
     <div className="table-wrap">
-      <table className="grid">
+      <table className="data-table">
         <thead>
           <tr>
             <th>Apto</th>

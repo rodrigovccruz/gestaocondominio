@@ -291,46 +291,46 @@ select:focus-visible {
   overflow-x: auto;
   margin: 0 -4px;
 }
-.grid {
+.data-table {
   width: 100%;
   border-collapse: collapse;
   font-variant-numeric: tabular-nums;
 }
-.grid th,
-.grid td {
+.data-table th,
+.data-table td {
   padding: 9px 6px;
   border-bottom: 1px solid var(--line);
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
 }
-.grid th {
+.data-table th {
   font-size: 12px;
   font-weight: 700;
   color: var(--muted-ink);
 }
-.grid td small {
+.data-table td small {
   display: block;
   font-size: 12px;
   color: var(--muted-ink);
 }
-.grid tfoot td {
+.data-table tfoot td {
   border-bottom: 0;
   font-weight: 800;
   color: var(--forest-deep);
 }
-.grid .num {
+.data-table .num {
   text-align: right;
 }
-.grid .actions {
+.data-table .actions {
   width: 1%;
   text-align: right;
 }
-.grid td:first-child {
+.data-table td:first-child {
   white-space: normal;
 }
-.grid th:first-child,
-.grid td:first-child {
+.data-table th:first-child,
+.data-table td:first-child {
   position: sticky;
   left: 0;
   z-index: 1;
@@ -517,8 +517,8 @@ select:focus-visible {
   .month-select {
     flex: 1;
   }
-  .grid th,
-  .grid td {
+  .data-table th,
+  .data-table td {
     padding: 8px 4px;
     font-size: 13px;
   }

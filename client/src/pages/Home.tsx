@@ -273,7 +273,7 @@ function PainelTab({
 
       <Panel title="Situação de cada apartamento">
         <div className="table-wrap">
-          <table className="grid">
+          <table className="data-table">
             <thead>
               <tr>
                 <th>Apto</th>
@@ -453,7 +453,7 @@ function DespesasTab({
       <Panel title="Despesas do mês">
         {month.expenses.length ? (
           <div className="table-wrap">
-            <table className="grid">
+            <table className="data-table">
               <tbody>
                 {month.expenses.map(e => (
                   <tr key={e.id}>
@@ -614,7 +614,7 @@ function LeiturasTab({
       }
     >
       <div className="table-wrap">
-        <table className="grid readings">
+        <table className="data-table readings">
           <thead>
             <tr>
               <th>Apto</th>
@@ -727,7 +727,7 @@ function PagamentosTab({
       }
     >
       <div className="table-wrap">
-        <table className="grid">
+        <table className="data-table">
           <thead>
             <tr>
               <th>Apto</th>
@@ -884,7 +884,7 @@ function CadastroTab({
         }
       >
         <div className="table-wrap">
-          <table className="grid">
+          <table className="data-table">
             <thead>
               <tr>
                 <th>Número</th>
