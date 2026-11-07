@@ -1,90 +1,80 @@
-import { TRPCError } from "@trpc/server";
-import {
-  type CondoState,
-  condoStateSchema,
-  attachUnitSnapshots,
-} from "@shared/condo";
-import type {
-  PublicDashboard,
-  PublicExpenseCategory,
-} from "@shared/public-dashboard";
+import { z } from "zod";
+import { EXPENSE_CATEGORIES, type CondoState } from "@shared/condo";
+import { buildReports } from "@shared/calc";
+import type { PublicDashboard } from "@shared/public-dashboard";
 import {
   getPublicStateFromResolution,
   resolveConfiguredCondo,
 } from "./condo-config";
 
-const PUBLIC_CATEGORIES: PublicExpenseCategory[] = [
-  "Água",
-  "Gás",
-  "Manutenção",
-  "Limpeza",
-  "Administração",
-  "Outros",
-];
+export const publicDashboardInputSchema = z
+  .object({
+    competence: z
+      .string()
+      .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+      .optional(),
+  })
+  .optional();
 
-function validatedState(value: CondoState): CondoState {
-  const parsed = condoStateSchema.safeParse(value);
-  if (!parsed.success) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "O estado persistido do condomínio é inválido.",
-    });
-  }
-  return attachUnitSnapshots(parsed.data);
-}
-
-/** Pure projection used by both the public router and isolated unit tests. */
-export function toPublicDashboard(value: CondoState): PublicDashboard {
-  const state = validatedState(value);
-  const latest = state.months.reduce<(typeof state.months)[number] | null>(
-    (current, month) =>
-      !current || month.competence > current.competence ? month : current,
-    null
-  );
-
-  if (!latest) {
-    return {
-      name: state.name,
-      apartmentCount: state.units.filter(unit => unit.active).length,
-      latest: null,
-    };
-  }
-
-  const categoryTotals = new Map<PublicExpenseCategory, number>();
-  for (const expense of latest.expenses) {
-    categoryTotals.set(
-      expense.category,
-      (categoryTotals.get(expense.category) ?? 0) + expense.amountCents
-    );
-  }
-
-  return {
+/** Projeção pública: lista do que pode aparecer, nada além disso. */
+export function toPublicDashboard(
+  state: CondoState,
+  competence?: string
+): PublicDashboard {
+  const reports = buildReports(state);
+  const competences = reports.map(r => r.month.competence).reverse();
+  const report =
+    reports.find(r => r.month.competence === competence) ?? reports.at(-1);
+  const base = {
     name: state.name,
-    apartmentCount: state.units.filter(unit => unit.active).length,
-    latest: {
-      competence: latest.competence,
-      status: latest.status,
-      totalExpensesCents: latest.expenses.reduce(
-        (total, expense) => total + expense.amountCents,
-        0
-      ),
-      expenses: latest.expenses.map(expense => ({
-        id: expense.id,
-        description: expense.description,
-        category: expense.category,
-        date: expense.date,
-        amountCents: expense.amountCents,
+    apartmentCount: state.units.filter(u => u.active).length,
+    competences,
+  };
+  if (!report) return { ...base, month: null };
+
+  const { month, totals, quotas, cash } = report;
+  return {
+    ...base,
+    month: {
+      competence: month.competence,
+      status: month.status,
+      expenses: month.expenses.map(e => ({
+        id: e.id,
+        description: e.description,
+        category: e.category,
+        amountCents: e.amountCents,
       })),
-      categories: PUBLIC_CATEGORIES.flatMap(category => {
-        const amountCents = categoryTotals.get(category);
-        return amountCents === undefined ? [] : [{ category, amountCents }];
-      }),
+      categories: EXPENSE_CATEGORIES.map(category => ({
+        category,
+        amountCents: month.expenses
+          .filter(e => e.category === category)
+          .reduce((sum, e) => sum + e.amountCents, 0),
+      })).filter(c => c.amountCents > 0),
+      totals,
+      quotas: quotas.map(q => ({
+        number: q.number,
+        waterMilli: q.waterMilli,
+        gasMilli: q.gasMilli,
+        waterCents: q.waterCents,
+        gasCents: q.gasCents,
+        commonCents: q.commonCents,
+        reserveCents: q.reserveCents,
+        totalCents: q.totalCents,
+      })),
+      cash: {
+        openingCents: cash.openingCents,
+        receivedCents: cash.receivedCents,
+        expensesCents: cash.expensesCents,
+        closingCents: cash.closingCents,
+      },
     },
   };
 }
 
-export async function getPublicDashboard(): Promise<PublicDashboard> {
+export async function getPublicDashboard(
+  competence?: string
+): Promise<PublicDashboard> {
   const resolution = await resolveConfiguredCondo();
   const { state } = getPublicStateFromResolution(resolution);
-  return toPublicDashboard(state);
+  return toPublicDashboard(state, competence);
 }

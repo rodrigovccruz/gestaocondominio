@@ -3,7 +3,7 @@ import {
   parseMoneyInput,
   parseSignedMoneyInput,
   parseReadingInput,
-  previousCompetence,
+  nextCompetence,
 } from "./condo-utils";
 
 describe("entrada de valores do condomínio", () => {
@@ -29,8 +29,8 @@ describe("entrada de valores do condomínio", () => {
     expect(parseMoneyInput("-1,00")).toBeNull();
     expect(parseReadingInput("-1,000")).toBeNull();
   });
-  it("identifica o mês calendário anterior, inclusive na virada do ano", () => {
-    expect(previousCompetence("2026-01")).toBe("2025-12");
-    expect(previousCompetence("2026-10")).toBe("2026-09");
+  it("calcula o mês seguinte, inclusive na virada do ano", () => {
+    expect(nextCompetence("2026-12")).toBe("2027-01");
+    expect(nextCompetence("2026-09")).toBe("2026-10");
   });
 });

@@ -1,11 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { eq } from "drizzle-orm";
-import {
-  attachUnitSnapshots,
-  condoStateSchema,
-  initialState,
-  type CondoState,
-} from "@shared/condo";
+import { condoStateSchema, initialState, type CondoState } from "@shared/condo";
 import { condoStates } from "../drizzle/schema";
 import { getDb } from "./db";
 
@@ -41,7 +36,7 @@ function parsePersistedState(value: unknown): CondoState {
       message: "O estado persistido do condomínio é inválido.",
     });
   }
-  return attachUnitSnapshots(parsed.data);
+  return parsed.data;
 }
 
 async function requireDb() {

@@ -15,171 +15,164 @@ function makeDb(rows: unknown[]) {
 }
 
 function fixtureState(): CondoState {
-  return {
-    name: "Condomínio Público",
-    units: [
+  const month = (
+    id: string,
+    competence: string,
+    status: "open" | "closed",
+    payments: CondoState["months"][number]["payments"]
+  ): CondoState["months"][number] => ({
+    id,
+    competence,
+    status,
+    reservePerUnitCents: 0,
+    readings: [
       {
-        id: "u1",
-        number: "101",
-        resident: "Morador privado",
-        fraction: 50,
-        active: true,
+        unitId: "u1",
+        waterPrevious: 0,
+        waterCurrent: 3000,
+        gasPrevious: 0,
+        gasCurrent: 0,
       },
       {
-        id: "u2",
-        number: "102",
-        resident: "Outro privado",
-        fraction: 50,
-        active: false,
+        unitId: "u2",
+        waterPrevious: 0,
+        waterCurrent: 1000,
+        gasPrevious: 0,
+        gasCurrent: 0,
       },
     ],
+    expenses: [
+      {
+        id: `${id}-agua`,
+        description: "Conta Copasa",
+        category: "Água",
+        amountCents: 4000,
+      },
+      {
+        id: `${id}-limpeza`,
+        description: "Faxina",
+        category: "Limpeza",
+        amountCents: 1000,
+      },
+    ],
+    payments,
+    bankBalanceCents: 123,
+  });
+  return {
+    name: "Condomínio Público",
+    openingBalanceCents: 10000,
+    units: [
+      { id: "u1", number: "101", resident: "Morador privado", active: true },
+      { id: "u2", number: "102", resident: "Outro privado", active: true },
+    ],
     months: [
-      {
-        id: "m-old",
-        competence: "2025-12",
-        status: "closed",
-        waterRateCents: 100,
-        gasRateCents: 100,
-        openingBalanceCents: 0,
-        charges: [],
-        expenses: [
-          {
-            id: "old-expense",
-            description: "Despesa antiga",
-            category: "Limpeza",
-            date: "2025-12-10",
-            amountCents: 1,
-          },
-        ],
-      },
-      {
-        id: "m-latest",
-        competence: "2026-02",
-        status: "open",
-        waterRateCents: 100,
-        gasRateCents: 100,
-        openingBalanceCents: 0,
-        charges: [
-          {
-            unitId: "u1",
-            waterPrevious: 1,
-            waterCurrent: 2,
-            gasPrevious: 3,
-            gasCurrent: 4,
-            condoCents: 9,
-            reserveCents: 8,
-            fineCents: 7,
-            otherCents: 6,
-            paidCents: 5,
-            notes: "nota privada",
-          },
-        ],
-        expenses: [
-          {
-            id: "expense-1",
-            description: "Conta de água",
-            category: "Água",
-            date: "2026-02-10",
-            amountCents: 1200,
-            rateable: true,
-          },
-          {
-            id: "expense-2",
-            description: "Serviço de limpeza",
-            category: "Limpeza",
-            date: "2026-02-11",
-            amountCents: 800,
-          },
-        ],
-      },
+      month("m-old", "2026-01", "closed", [
+        { unitId: "u1", amountCents: 3500 },
+      ]),
+      month("m-new", "2026-02", "open", []),
     ],
   };
 }
 
-describe("dashboard público", () => {
+describe("quadro público", () => {
   beforeEach(() => getDbMock.mockReset());
 
-  it("escolhe a competência lexicograficamente mais recente e redige PII/financeiro privado", () => {
+  it("mostra o mês mais recente com a cota de cada apartamento e o caixa", () => {
     const result = toPublicDashboard(fixtureState());
-
-    expect(result).toEqual({
-      name: "Condomínio Público",
-      apartmentCount: 1,
-      latest: {
-        competence: "2026-02",
-        status: "open",
-        totalExpensesCents: 2000,
-        expenses: [
-          {
-            id: "expense-1",
-            description: "Conta de água",
-            category: "Água",
-            date: "2026-02-10",
-            amountCents: 1200,
-          },
-          {
-            id: "expense-2",
-            description: "Serviço de limpeza",
-            category: "Limpeza",
-            date: "2026-02-11",
-            amountCents: 800,
-          },
-        ],
-        categories: [
-          { category: "Água", amountCents: 1200 },
-          { category: "Limpeza", amountCents: 800 },
-        ],
+    expect(result.competences).toEqual(["2026-02", "2026-01"]);
+    expect(result.month?.competence).toBe("2026-02");
+    expect(result.month?.quotas).toEqual([
+      {
+        number: "101",
+        waterMilli: 3000,
+        gasMilli: 0,
+        waterCents: 3000,
+        gasCents: 0,
+        commonCents: 500,
+        reserveCents: 0,
+        totalCents: 3500,
       },
+      {
+        number: "102",
+        waterMilli: 1000,
+        gasMilli: 0,
+        waterCents: 1000,
+        gasCents: 0,
+        commonCents: 500,
+        reserveCents: 0,
+        totalCents: 1500,
+      },
+    ]);
+    expect(result.month?.cash).toEqual({
+      openingCents: 10000 + 3500 - 5000,
+      receivedCents: 0,
+      expensesCents: 5000,
+      closingCents: 10000 + 3500 - 5000 - 5000,
     });
-
-    const serialized = JSON.stringify(result);
-    expect(serialized).not.toContain("Morador privado");
-    expect(serialized).not.toContain("nota privada");
-    expect(serialized).not.toContain("u1");
-    expect(serialized).not.toContain("fineCents");
-    expect(serialized).not.toContain("paidCents");
+    expect(result.month?.categories).toEqual([
+      { category: "Água", amountCents: 4000 },
+      { category: "Limpeza", amountCents: 1000 },
+    ]);
   });
 
-  it("retorna latest null para zero competências", () => {
-    expect(
-      toPublicDashboard({ ...initialState, name: "Vazio", units: [] })
-    ).toEqual({
+  it("abre um mês anterior quando pedido", () => {
+    const result = toPublicDashboard(fixtureState(), "2026-01");
+    expect(result.month?.competence).toBe("2026-01");
+    expect(result.month?.cash.receivedCents).toBe(3500);
+  });
+
+  it("não expõe moradores, ids, pagamentos por apto nem extrato", () => {
+    const serialized = JSON.stringify(toPublicDashboard(fixtureState()));
+    for (const hidden of [
+      "Morador privado",
+      "Outro privado",
+      "u1",
+      "u2",
+      "paidCents",
+      "balanceCents",
+      "bankBalanceCents",
+      "previousCents",
+    ])
+      expect(serialized).not.toContain(hidden);
+  });
+
+  it("retorna mês nulo quando nada foi lançado", () => {
+    expect(toPublicDashboard({ ...initialState, name: "Vazio" })).toEqual({
       name: "Vazio",
       apartmentCount: 0,
-      latest: null,
+      competences: [],
+      month: null,
     });
   });
 
-  it("usa o único condo_states configurado", async () => {
+  it("usa o único condomínio configurado", async () => {
     getDbMock.mockResolvedValue(
       makeDb([{ ownerId: 77, state: fixtureState(), revision: 4 }])
     );
-
     await expect(getPublicDashboard()).resolves.toMatchObject({
       name: "Condomínio Público",
-      apartmentCount: 1,
-      latest: { competence: "2026-02" },
+      apartmentCount: 2,
+      month: { competence: "2026-02" },
     });
   });
 
-  it("usa o nome público padrão vazio sem inventar owner ou apartamentos", async () => {
+  it("usa o nome padrão quando o banco está vazio", async () => {
     getDbMock.mockResolvedValue(makeDb([]));
-
     await expect(getPublicDashboard()).resolves.toEqual({
       name: DEFAULT_PUBLIC_CONDO_NAME,
       apartmentCount: 0,
-      latest: null,
+      competences: [],
+      month: null,
     });
   });
 
-  it("falha fechado quando há mais de um condo configurado", async () => {
+  it("falha fechado quando há mais de um condomínio", async () => {
     getDbMock.mockResolvedValue(
       makeDb([
         { ownerId: 1, state: fixtureState(), revision: 1 },
         { ownerId: 2, state: fixtureState(), revision: 1 },
       ])
     );
-
     await expect(getPublicDashboard()).rejects.toMatchObject({
       code: "SERVICE_UNAVAILABLE",
     });

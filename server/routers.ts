@@ -6,7 +6,10 @@ import {
   getSyndicIdentity,
   syndicLoginInputSchema,
 } from "./syndic-auth";
-import { getPublicDashboard } from "./publicDashboard";
+import {
+  getPublicDashboard,
+  publicDashboardInputSchema,
+} from "./publicDashboard";
 import { condoRouter } from "./condo";
 
 export const appRouter = router({
@@ -25,7 +28,9 @@ export const appRouter = router({
     ),
   }),
   publicDashboard: router({
-    get: publicProcedure.query(() => getPublicDashboard()),
+    get: publicProcedure
+      .input(publicDashboardInputSchema)
+      .query(({ input }) => getPublicDashboard(input?.competence)),
   }),
   condo: condoRouter,
 });
