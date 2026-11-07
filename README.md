@@ -1,5 +1,7 @@
 # Condomínio San Gimignano
 
+**Gestao Condominio · gestaocondominio**
+
 Sistema web de gestão financeira para o condomínio residencial San Gimignano. A raiz do aplicativo é um quadro público, sem landing page e sem login: ele consolida as despesas comuns da competência mensal mais recente cadastrada. A única área privada é a área do síndico, acessível em `/sindico`.
 
 Os dez apartamentos de referência são **101, 102, 201, 202, 301, 302, 401, 402, 501 e 502**. A documentação não trata a fotografia de referência como fonte de valores financeiros, percentuais ou moradores. Registros legados de membros e convites podem permanecer no banco por histórico, mas não concedem acesso ao aplicativo.
