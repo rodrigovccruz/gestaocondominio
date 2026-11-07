@@ -48,7 +48,18 @@ pnpm build && pnpm start
 
 Variáveis (fora do Git): `DATABASE_URL` e `CONDO_ADMIN_PASSWORD`. Sem a senha configurada, o login fica desativado.
 
-O login só funciona se já existir o registro do condomínio na tabela `condo_states` (criado na primeira versão do app). Desenvolvimento e produção hoje usam o mesmo banco: não rode testes destrutivos nem seeds contra ele.
+O login só funciona se já existir o registro do condomínio na tabela `condo_states`. Num banco novo, defina `CONDO_UNITS` (ex.: `101,102,201,202,301,302,401,402,501,502`) e, opcional, `CONDO_NAME`: na Vercel, a primeira requisição aplica as migrações e cria o condomínio com esses apartamentos. Banco que já tem condomínio não é alterado.
+
+## Publicar na Vercel
+
+O banco fica fora da Vercel (qualquer MySQL; o TiDB Cloud Serverless tem plano grátis).
+
+1. Crie o banco e copie a string de conexão. No TiDB: `mysql://USUARIO:SENHA@HOST:4000/condo?ssl={"rejectUnauthorized":true}`.
+2. Na Vercel, importe este repositório. O `vercel.json` já define o build (`pnpm build:vercel`); não mude Framework, Build ou Output.
+3. Em Settings > Environment Variables: `DATABASE_URL`, `CONDO_ADMIN_PASSWORD` e `CONDO_UNITS`.
+4. Faça o deploy e abra o endereço. O quadro aparece vazio; entre em `/sindico` com `admin` e a senha.
+
+O build gera `.vercel/output`: o site em `static/` e a API numa função Node em `functions/api.func`.
 
 ## Código
 
@@ -60,6 +71,8 @@ O login só funciona se já existir o registro do condomínio na tabela `condo_s
 | `server/condo.ts`                      | Ler e salvar o estado (com controle de revisão) |
 | `server/publicDashboard.ts`            | O que o quadro público pode mostrar             |
 | `server/syndic-auth.ts`                | Login, sessão e limite de tentativas do síndico |
+| `server/bootstrap.ts`                  | Migrações e criação do condomínio em banco novo |
+| `server/vercel.ts`                     | Função da Vercel (API)                          |
 | `client/src/pages/PublicDashboard.tsx` | Quadro                                          |
 | `client/src/pages/Home.tsx`            | Área do síndico                                 |
 
