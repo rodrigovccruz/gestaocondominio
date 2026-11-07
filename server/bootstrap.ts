@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { eq } from "drizzle-orm";
-import { migrate } from "drizzle-orm/mysql2/migrator";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { initialState, type CondoState } from "@shared/condo";
 import { condoStates, users } from "../drizzle/schema";
 import { getDb } from "./db";
@@ -52,7 +52,7 @@ export async function prepareDatabase(migrationsFolder?: string) {
   await db
     .insert(users)
     .values({ openId: "sindico", name: "Síndico", role: "admin" })
-    .onDuplicateKeyUpdate({ set: { role: "admin" } });
+    .onConflictDoNothing({ target: users.openId });
   const [owner] = await db
     .select({ id: users.id })
     .from(users)

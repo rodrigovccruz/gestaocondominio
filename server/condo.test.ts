@@ -42,10 +42,13 @@ function makeDb(
       set: vi.fn((values: unknown) => {
         updatedValues.push(values);
         return {
-          where: vi.fn(async () => [
-            { affectedRows: options.affectedRows ?? 1 },
-            [],
-          ]),
+          where: vi.fn(() => ({
+            returning: vi.fn(async () =>
+              Array.from({ length: options.affectedRows ?? 1 }, () => ({
+                ownerId: 1,
+              }))
+            ),
+          })),
         };
       }),
     })),

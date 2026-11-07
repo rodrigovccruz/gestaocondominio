@@ -1,4 +1,4 @@
-import { MySqlDialect } from "drizzle-orm/mysql-core";
+import { PgDialect } from "drizzle-orm/pg-core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   LOGIN_RATE_LIMIT_MAX_FAILURES,
@@ -17,14 +17,14 @@ function transactionalFakeDb() {
     updatedAt: Date;
   };
   const rows = new Map<string, Row>();
-  const dialect = new MySqlDialect();
+  const dialect = new PgDialect();
   let tail: Promise<unknown> = Promise.resolve();
-  const scopeFrom = (condition: Parameters<MySqlDialect["sqlToQuery"]>[0]) =>
+  const scopeFrom = (condition: Parameters<PgDialect["sqlToQuery"]>[0]) =>
     String(dialect.sqlToQuery(condition).params[0]);
   const tx = {
     insert: () => ({
       values: (row: Omit<Row, "updatedAt">) => ({
-        onDuplicateKeyUpdate: async () => {
+        onConflictDoNothing: async () => {
           if (!rows.has(row.scope))
             rows.set(row.scope, { ...row, updatedAt: row.windowStartedAt });
         },
@@ -34,7 +34,7 @@ function transactionalFakeDb() {
       let scope = "";
       const query = {
         from: () => query,
-        where: (condition: Parameters<MySqlDialect["sqlToQuery"]>[0]) => {
+        where: (condition: Parameters<PgDialect["sqlToQuery"]>[0]) => {
           scope = scopeFrom(condition);
           return query;
         },
@@ -49,7 +49,7 @@ function transactionalFakeDb() {
     },
     update: () => ({
       set: (fields: Partial<Row>) => ({
-        where: async (condition: Parameters<MySqlDialect["sqlToQuery"]>[0]) => {
+        where: async (condition: Parameters<PgDialect["sqlToQuery"]>[0]) => {
           const scope = scopeFrom(condition);
           const row = rows.get(scope);
           if (row) rows.set(scope, { ...row, ...fields });

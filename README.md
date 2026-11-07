@@ -35,7 +35,7 @@ Se ninguém consumiu no mês, a conta é dividida igualmente. A soma das cotas �
 
 ## Rodar
 
-Requisitos: Node.js 22, pnpm 10.18 e MySQL.
+Requisitos: Node.js 22, pnpm 10.18 e Postgres.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -52,14 +52,13 @@ O login só funciona se já existir o registro do condomínio na tabela `condo_s
 
 ## Publicar na Vercel
 
-O banco fica fora da Vercel (qualquer MySQL; o TiDB Cloud Serverless tem plano grátis).
+O banco é um Postgres criado dentro da própria Vercel (Neon).
 
-1. Crie o banco e copie a string de conexão. No TiDB: `mysql://USUARIO:SENHA@HOST:4000/condo?ssl={"rejectUnauthorized":true}`.
-2. Na Vercel, importe este repositório. O `vercel.json` já define o build (`pnpm build:vercel`); não mude Framework, Build ou Output.
-3. Em Settings > Environment Variables: `DATABASE_URL`, `CONDO_ADMIN_PASSWORD` e `CONDO_UNITS`.
-4. Faça o deploy e abra o endereço. O quadro aparece vazio; entre em `/sindico` com `admin` e a senha.
+1. No projeto da Vercel, aba **Storage**, crie um banco **Neon** e conecte ao projeto. A Vercel preenche `DATABASE_URL` sozinha.
+2. Em Settings > Environment Variables, cadastre `CONDO_ADMIN_PASSWORD` e `CONDO_UNITS`.
+3. Faça o deploy (ou Redeploy) e abra o endereço. O quadro aparece vazio; entre em `/sindico` com `admin` e a senha.
 
-O build gera `.vercel/output`: o site em `static/` e a API numa função Node em `functions/api.func`.
+O build (`pnpm build:vercel`, definido no `vercel.json`) gera `.vercel/output`: o site em `static/` e a API numa função Node em `functions/api.func`.
 
 ## Código
 

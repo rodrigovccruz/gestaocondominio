@@ -213,7 +213,7 @@ export async function reserveLoginAttempt(
           windowStartedAt: now,
           blockedUntil: null,
         })
-        .onDuplicateKeyUpdate({ set: { scope } });
+        .onConflictDoNothing({ target: syndicLoginRateLimits.scope });
       rows.push(await lockRateRow(tx, scope));
     }
     let retryAfter = 0;

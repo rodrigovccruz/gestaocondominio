@@ -135,7 +135,7 @@ export async function saveCondoState(
   if (saved.revision !== expectedRevision) throw new CondoConflictError();
   validateClosedCompetenceChanges(saved.state, nextState);
 
-  const result = await db
+  const updated = await db
     .update(condoStates)
     .set({ state: nextState, revision: sql`${condoStates.revision} + 1` })
     .where(
@@ -143,8 +143,9 @@ export async function saveCondoState(
         eq(condoStates.ownerId, ownerId),
         eq(condoStates.revision, expectedRevision)
       )
-    );
-  if (Number(result[0].affectedRows ?? 0) !== 1) throw new CondoConflictError();
+    )
+    .returning({ ownerId: condoStates.ownerId });
+  if (updated.length !== 1) throw new CondoConflictError();
   return { state: nextState, revision: expectedRevision + 1 };
 }
 
