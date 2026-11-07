@@ -58,8 +58,8 @@ A área pública é deliberadamente anônima e mínima. A área privada exige um
 
 ## Status e limites
 
-A mudança de escopo substitui os fluxos anteriores de OAuth, convites e portal de moradores. Os módulos e contratos novos estão documentados, mas a validação final de check, testes, build, rotas montadas, migração aditiva, hash do estado e ausência de vazamento deve ser registrada em [docs/validacao.md](docs/validacao.md) somente após a execução real. Não inventar contagem de testes, expiração verificada ou publicação.
+A mudança de escopo substitui os fluxos anteriores de OAuth, convites e portal de moradores. Os módulos e contratos novos estão documentados; os resultados de validação realmente executados nesta sessão estão em [docs/validacao.md](docs/validacao.md). Essa verificação local não equivale à homologação visual completa nem à execução de migrações em produção.
 
 Não há boleto/Pix integrado, baixa bancária, WhatsApp, tarifas progressivas, mínimo Copasa ou PDF automático com anexos. Essas funções exigem escopo próprio.
 
-O código está publicado no repositório GitHub [rodrigovccruz/gestaocondominio](https://github.com/rodrigovccruz/gestaocondominio), configurado como público. A publicação sincroniza somente o código, os testes e a documentação; não faz deploy do site nem configura uma sessão do GitHub Copilot. O projeto mantém a licença MIT declarada em `package.json`.
+O destino definido para publicação é o repositório público [rodrigovccruz/gestaocondominio](https://github.com/rodrigovccruz/gestaocondominio). O commit local já integra os 188 arquivos do código, testes e documentação ao commit inicial do GitHub; o push aguarda autorização de escrita para esse repositório. A publicação do código não faz deploy do site nem configura uma sessão do GitHub Copilot. O projeto mantém a licença MIT declarada em `package.json`.
