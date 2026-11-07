@@ -62,4 +62,4 @@ A mudança de escopo substitui os fluxos anteriores de OAuth, convites e portal 
 
 Não há boleto/Pix integrado, baixa bancária, WhatsApp, tarifas progressivas, mínimo Copasa ou PDF automático com anexos. Essas funções exigem escopo próprio.
 
-O destino definido para publicação é o repositório público [rodrigovccruz/gestaocondominio](https://github.com/rodrigovccruz/gestaocondominio). O commit local já integra os 188 arquivos do código, testes e documentação ao commit inicial do GitHub; o push aguarda autorização de escrita para esse repositório. A publicação do código não faz deploy do site nem configura uma sessão do GitHub Copilot. O projeto mantém a licença MIT declarada em `package.json`.
+O código está publicado no repositório público [rodrigovccruz/gestaocondominio](https://github.com/rodrigovccruz/gestaocondominio), na branch `main`. A publicação sincroniza os 188 arquivos de código, testes e documentação; não faz deploy do site nem configura uma sessão do GitHub Copilot. O projeto mantém a licença MIT declarada em `package.json`.
