@@ -1,0 +1,6 @@
+{
+  "routes": [
+    { "path": "/", "title": "Despesas consolidadas" },
+    { "path": "/sindico", "title": "Área do síndico" }
+  ]
+}
