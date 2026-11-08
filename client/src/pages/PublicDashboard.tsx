@@ -13,6 +13,7 @@ import {
   QuotaTable,
   SplitRule,
 } from "@/components/condo/quota-table";
+import { BuildingBoard } from "@/components/condo/building-board";
 import { trpc } from "@/lib/trpc";
 import { formatMoney, formatMonth } from "@shared/calc";
 import type { PublicDashboard as Board } from "@shared/public-dashboard";
@@ -53,6 +54,15 @@ function BoardContent({
         <Notice>Mês em aberto: os valores podem mudar até o fechamento.</Notice>
       ) : null}
 
+      <BuildingBoard
+        title="Quanto cada apartamento paga"
+        units={month.quotas.map(q => ({
+          number: q.number,
+          value: formatMoney(q.totalCents),
+        }))}
+        footer={`Cota de ${formatMonth(month.competence)}`}
+      />
+
       <div className="metrics">
         <Metric
           label="Despesas do mês"
@@ -64,7 +74,7 @@ function BoardContent({
         />
       </div>
 
-      <Panel title="Quanto cada apartamento paga">
+      <Panel title="Composição da cota">
         <QuotaTable quotas={month.quotas} />
         <SplitRule count={month.quotas.length} />
       </Panel>

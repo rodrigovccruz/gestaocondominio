@@ -39,15 +39,15 @@
 }
 
 :root {
-  --forest: #365847;
-  --forest-deep: #243d31;
-  --forest-soft: #e8efe9;
+  --forest: #2f6e6b;
+  --forest-deep: #1f4f4d;
+  --forest-soft: #e1eeeb;
   --terracotta: #c68b59;
   --terracotta-soft: #f6e9dc;
-  --offwhite: #f5f5ef;
-  --ink: #26342d;
-  --muted-ink: #6b7871;
-  --line: #dfe5df;
+  --offwhite: #f6f2ea;
+  --ink: #26302e;
+  --muted-ink: #6b726c;
+  --line: #e8e0d2;
   --white: #ffffff;
   --primary: var(--forest);
   --primary-foreground: #ffffff;
@@ -59,23 +59,23 @@
   --card-foreground: var(--ink);
   --popover: var(--white);
   --popover-foreground: var(--ink);
-  --secondary: #edf1ed;
+  --secondary: #eef4f2;
   --secondary-foreground: var(--forest);
-  --muted: #eef1ee;
+  --muted: #f0ece4;
   --muted-foreground: var(--muted-ink);
-  --accent: #eef3ef;
+  --accent: #e9f2f0;
   --accent-foreground: var(--forest-deep);
   --destructive: #a74a42;
   --destructive-foreground: #ffffff;
   --border: var(--line);
-  --input: #d6dfd8;
-  --ring: #88a593;
+  --input: #ddd3c2;
+  --ring: #7fb4ad;
   --sidebar: var(--forest-deep);
   --sidebar-foreground: #e9f0eb;
-  --sidebar-accent: #315240;
+  --sidebar-accent: #2a5f5c;
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: #93b09d;
+  --sidebar-ring: #8cbdb6;
   --radius: 0.75rem;
 }
 
@@ -163,23 +163,10 @@ select:focus-visible {
   white-space: nowrap;
 }
 .brand-mark {
-  position: relative;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
-  border-radius: 10px;
-  background: var(--forest);
-  color: #fff;
-  overflow: hidden;
-}
-.brand-mark img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  display: block;
 }
 
 /* Barra do mês e abas */
@@ -537,5 +524,116 @@ select:focus-visible {
   .panel,
   .metric {
     break-inside: avoid;
+  }
+}
+
+/* Prédio: cada janela é um apartamento */
+.building {
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 14px 14px 0;
+  background: #ece3d4;
+  border: 1px solid #d8cbb5;
+  border-radius: 16px 16px 4px 4px;
+  box-shadow: 0 12px 26px -20px rgba(60, 50, 30, 0.7);
+}
+.building h2 {
+  margin: 0 0 10px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--forest-deep);
+}
+.building-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.building-body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 64px;
+  transform: translateX(-50%);
+  background: url("/mosaic.svg") center top / 40px 40px;
+  border-inline: 2px solid #fff;
+}
+.floor {
+  display: grid;
+  grid-template-columns: 1fr 64px 1fr;
+}
+.floor-side {
+  display: flex;
+  gap: 6px;
+  padding: 5px 8px;
+}
+.window {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 6px;
+  text-align: center;
+  background: repeating-linear-gradient(180deg, #fff 0 5px, #f1ece3 5px 6px);
+  border: 1px solid #c9bca6;
+  border-radius: 6px;
+}
+.window b {
+  display: block;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--muted-ink);
+}
+.window span {
+  display: block;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--forest-deep);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.window small {
+  display: block;
+  margin-top: 1px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.window-ok small {
+  color: var(--forest);
+}
+.window-credit small {
+  color: var(--forest);
+}
+.window-due {
+  border-color: #c98a6a;
+  background: repeating-linear-gradient(180deg, #fff6f1 0 5px, #f6e6dc 5px 6px);
+}
+.window-due small {
+  color: var(--destructive);
+}
+.building-base {
+  margin: 6px -14px 0;
+  padding: 4px 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5b5243;
+  background: #d8cbb5;
+  border-radius: 0 0 4px 4px;
+}
+@media (max-width: 380px) {
+  .floor {
+    grid-template-columns: 1fr 40px 1fr;
+  }
+  .building-body::before {
+    width: 40px;
+  }
+  .floor-side {
+    padding: 5px 4px;
+  }
+  .window span {
+    font-size: 15px;
   }
 }
