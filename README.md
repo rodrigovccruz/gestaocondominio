@@ -58,6 +58,12 @@ O banco é um Postgres criado dentro da própria Vercel (Neon).
 2. Em Settings > Environment Variables, cadastre `CONDO_ADMIN_PASSWORD` e `CONDO_UNITS`.
 3. Faça o deploy (ou Redeploy) e abra o endereço. O quadro aparece vazio; entre em `/sindico` com `admin` e a senha.
 
+### Ambiente de teste
+
+1. Produção (`main`) usa o banco `condo-db`; Preview e Development usam o `condo-db-teste`.
+2. A branch `teste` publica em `gestaocondominio-git-teste-rvcc.vercel.app`, que só abre para quem está logado na Vercel.
+3. Para zerar o teste, apague as linhas de `condo_states` no `condo-db-teste` (ou o banco inteiro). O próximo acesso recria o condomínio com `CONDO_UNITS`.
+
 O build (`pnpm build:vercel`, definido no `vercel.json`) gera `.vercel/output`: o site em `static/` e a API numa função Node em `functions/api.func`.
 
 ## Código
