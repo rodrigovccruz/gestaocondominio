@@ -1,14 +1,34 @@
-import { formatM3, formatMoney, type UnitQuota } from "@shared/calc";
+import {
+  formatM3,
+  formatMoney,
+  type MonthTotals,
+  type UnitQuota,
+} from "@shared/calc";
+import type { PublicCash } from "@shared/public-dashboard";
 
 type QuotaRow = Omit<UnitQuota, "unitId">;
 
-/** Quanto cada apartamento paga no mês, aberto por água, gás e despesas comuns. */
-export function QuotaTable({ quotas }: { quotas: QuotaRow[] }) {
+const COLUMNS: { key: keyof QuotaRow; label: string }[] = [
+  { key: "feeCents", label: "Taxa" },
+  { key: "maintenanceCents", label: "Manutenção" },
+  { key: "reserveCents", label: "Reserva" },
+  { key: "adminCents", label: "Adm." },
+  { key: "extraCents", label: "Avulsos" },
+];
+
+/** Quanto cada apartamento paga no mês, aberto em consumo, taxa e fundos. */
+export function QuotaTable({
+  quotas,
+  totals,
+}: {
+  quotas: QuotaRow[];
+  totals: MonthTotals;
+}) {
   if (!quotas.length)
     return <p className="muted">Nenhum apartamento neste mês.</p>;
-  const showReserve = quotas.some(q => q.reserveCents > 0);
   const sum = (pick: (q: QuotaRow) => number) =>
     quotas.reduce((total, q) => total + pick(q), 0);
+  const columns = COLUMNS.filter(c => sum(q => Number(q[c.key])) !== 0);
 
   return (
     <div className="table-wrap">
@@ -19,8 +39,11 @@ export function QuotaTable({ quotas }: { quotas: QuotaRow[] }) {
             <th className="num">Total</th>
             <th className="num">Água</th>
             <th className="num">Gás</th>
-            <th className="num">Comuns</th>
-            {showReserve ? <th className="num">Fundo</th> : null}
+            {columns.map(c => (
+              <th key={c.key} className="num">
+                {c.label}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -28,6 +51,7 @@ export function QuotaTable({ quotas }: { quotas: QuotaRow[] }) {
             <tr key={q.number}>
               <td>
                 <strong>{q.number}</strong>
+                {q.exempt ? <small>isento</small> : null}
               </td>
               <td className="num">
                 <strong>{formatMoney(q.totalCents)}</strong>
@@ -40,29 +64,35 @@ export function QuotaTable({ quotas }: { quotas: QuotaRow[] }) {
                 {formatMoney(q.gasCents)}
                 <small>{formatM3(q.gasMilli)} m³</small>
               </td>
-              <td className="num">{formatMoney(q.commonCents)}</td>
-              {showReserve ? (
-                <td className="num">{formatMoney(q.reserveCents)}</td>
-              ) : null}
+              {columns.map(c => (
+                <td key={c.key} className="num">
+                  {formatMoney(Number(q[c.key]))}
+                </td>
+              ))}
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr>
             <td>Total</td>
-            <td className="num">{formatMoney(sum(q => q.totalCents))}</td>
+            <td className="num">{formatMoney(totals.quotasCents)}</td>
             <td className="num">
-              {formatMoney(sum(q => q.waterCents))}
+              {formatMoney(totals.waterCents)}
               <small>{formatM3(sum(q => q.waterMilli))} m³</small>
             </td>
             <td className="num">
-              {formatMoney(sum(q => q.gasCents))}
+              {formatMoney(totals.gasCents)}
               <small>{formatM3(sum(q => q.gasMilli))} m³</small>
             </td>
-            <td className="num">{formatMoney(sum(q => q.commonCents))}</td>
-            {showReserve ? (
-              <td className="num">{formatMoney(sum(q => q.reserveCents))}</td>
-            ) : null}
+            {columns.map(c => (
+              <td key={c.key} className="num">
+                {formatMoney(
+                  c.key in totals
+                    ? totals[c.key as keyof MonthTotals]
+                    : sum(q => Number(q[c.key]))
+                )}
+              </td>
+            ))}
           </tr>
         </tfoot>
       </table>
@@ -70,16 +100,8 @@ export function QuotaTable({ quotas }: { quotas: QuotaRow[] }) {
   );
 }
 
-export function CashLines({
-  cash,
-}: {
-  cash: {
-    openingCents: number;
-    receivedCents: number;
-    expensesCents: number;
-    closingCents: number;
-  };
-}) {
+/** Caixa do mês: o total do banco e como ele se divide. */
+export function CashLines({ cash }: { cash: PublicCash }) {
   return (
     <dl className="lines">
       <div>
@@ -98,15 +120,36 @@ export function CashLines({
         <dt>Saldo em caixa</dt>
         <dd>{formatMoney(cash.closingCents)}</dd>
       </div>
+      <div>
+        <dt>Condomínio</dt>
+        <dd className={cash.condoClosingCents < 0 ? "bad" : undefined}>
+          {formatMoney(cash.condoClosingCents)}
+        </dd>
+      </div>
+      <div>
+        <dt>
+          Fundo de reserva
+          <small>
+            {" "}
+            (+ {formatMoney(cash.reserveInCents)}
+            {cash.reserveOutCents
+              ? ` − ${formatMoney(cash.reserveOutCents)}`
+              : ""}{" "}
+            no mês)
+          </small>
+        </dt>
+        <dd>{formatMoney(cash.reserveClosingCents)}</dd>
+      </div>
     </dl>
   );
 }
 
-export function SplitRule({ count }: { count: number }) {
+export function ChargeRule() {
   return (
     <p className="muted small">
-      Água e gás divididos pelo consumo de cada medidor. Demais despesas
-      divididas igualmente entre os {count} apartamentos.
+      Água e gás: consumo × preço do m³. Taxa de condomínio e administração:
+      valor fixo. Manutenção e reserva: percentual da taxa. Isento paga só
+      consumo, fundo de reserva e avulsos.
     </p>
   );
 }

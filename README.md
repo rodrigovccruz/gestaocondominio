@@ -10,26 +10,36 @@ App web para a gestão financeira de um condomínio pequeno (10 apartamentos). O
 
 O mês do síndico:
 
-1. **Novo mês**: as leituras anteriores e o fundo de reserva vêm do mês passado.
-2. **Despesas**: lança cada conta (Copasa, gás, faxina, manutenção...).
-3. **Leituras**: digita a leitura atual de água e gás de cada apartamento.
-4. **Pagamentos**: registra quanto cada apartamento pagou (o que entrou no banco).
-5. **Painel**: digita o saldo do extrato e vê se bateu. Fecha o mês.
+1. **Novo mês**: as leituras anteriores, a taxa, os percentuais e os preços do m³ vêm do mês passado.
+2. **Leituras**: digita a leitura atual de água e gás de cada apartamento.
+3. **Cobrança**: confere a taxa, os percentuais e os preços do m³ (a água pode ser calculada pela conta da Copasa dos aptos) e lança cobranças avulsas (multa, reembolso).
+4. **Despesas**: lança cada conta paga (marcando as que saem do fundo de reserva).
+5. **Pagamentos**: registra quanto cada apartamento pagou (o que entrou no banco).
+6. **Painel**: digita o saldo do extrato e vê se bateu. Fecha o mês.
 
 ## Regras de cálculo
 
-| Item                       | Como divide                                             |
-| -------------------------- | ------------------------------------------------------- |
-| Despesas da categoria Água | Pelo consumo de cada hidrômetro (m³ do apto ÷ m³ total) |
-| Despesas da categoria Gás  | Pelo consumo de cada medidor de gás                     |
-| Demais despesas            | Igual entre os apartamentos do mês                      |
-| Fundo de reserva           | Valor fixo por apartamento, definido no mês             |
+São as mesmas da planilha do condomínio (conferido com outubro/2026 em `shared/planilha-outubro.test.ts`).
 
-Se ninguém consumiu no mês, a conta é dividida igualmente. A soma das cotas é sempre igual ao total das despesas (mais o fundo): os centavos que sobram da divisão vão para quem tem o maior resto, em ordem de apartamento.
+| Item                  | Quanto cada apartamento paga                 |
+| --------------------- | -------------------------------------------- |
+| Água                  | Consumo do hidrômetro × preço do m³ do mês   |
+| Gás                   | Consumo do medidor × preço do m³ do mês      |
+| Taxa de condomínio    | Valor fixo por apartamento                   |
+| Fundo de manutenção   | % da taxa de condomínio                      |
+| Fundo de reserva      | % da taxa de condomínio (vai para o fundo)   |
+| Taxa de administração | Valor fixo por apartamento                   |
+| Cobrança avulsa       | Só no apartamento lançado (multa, reembolso) |
+
+**Isento** (ex.: síndico, marcado no Cadastro): não paga taxa de condomínio, manutenção nem administração; paga consumo, fundo de reserva e avulsos.
+
+As partes são somadas sem arredondar e só o total de cada apartamento é arredondado para centavos, como na planilha. As despesas não entram na cota: saem do caixa.
 
 **Saldo de cada apartamento:** a pagar no mês = saldo anterior + cota do mês. O que não for pago passa para o mês seguinte; pagamento a mais vira crédito. Pagamento atrasado é lançado no mês em que entrou no banco, sem reabrir o mês antigo.
 
 **Caixa:** saldo do mês = saldo anterior + recebido − despesas. O primeiro saldo anterior é o "Saldo no banco antes do 1º mês" (aba Cadastro); depois, o fechamento de um mês é a abertura do seguinte. Ao informar o extrato, o painel mostra a diferença.
+
+**Fundo de reserva:** saldo anterior + fundo de reserva cobrado no mês − despesas pagas pelo fundo. O caixa do condomínio é o saldo do banco menos o fundo, e pode ficar negativo.
 
 **Mês fechado** não aceita alteração. Para corrigir, reabra, corrija e feche de novo.
 

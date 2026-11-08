@@ -88,14 +88,21 @@ function context(userId: number | null): TrpcContext {
 const state: CondoState = {
   ...initialState,
   name: "Condomínio de teste",
-  units: [{ id: "u1", number: "101", resident: "", active: true }],
+  units: [
+    { id: "u1", number: "101", resident: "", active: true, exempt: false },
+  ],
 };
 
 const closedMonth: CondoState["months"][number] = {
   id: "month-2026-01",
   competence: "2026-01",
   status: "closed",
-  reservePerUnitCents: 0,
+  feeCents: 0,
+  maintenanceBp: 0,
+  reserveBp: 0,
+  adminCents: 0,
+  waterPriceCents: 0,
+  gasPriceCents: 0,
   readings: [
     {
       unitId: "u1",
@@ -106,9 +113,16 @@ const closedMonth: CondoState["months"][number] = {
     },
   ],
   expenses: [
-    { id: "e1", description: "Copasa", category: "Água", amountCents: 5000 },
+    {
+      id: "e1",
+      description: "Copasa",
+      category: "Água",
+      amountCents: 5000,
+      fromReserve: false,
+    },
   ],
   payments: [],
+  extraCharges: [],
   bankBalanceCents: null,
 };
 
@@ -218,7 +232,7 @@ describe("condo router e persistência", () => {
     expect(() =>
       validateClosedCompetenceChanges(closedState, {
         ...state,
-        months: [{ ...closedMonth, reservePerUnitCents: 100 }],
+        months: [{ ...closedMonth, feeCents: 100 }],
       })
     ).toThrow(/fechado/);
     expect(() =>
@@ -237,7 +251,10 @@ describe("condo router e persistência", () => {
     expect(parseState(JSON.stringify(legacy))).toEqual({
       name: "Condomínio San Gimignano",
       openingBalanceCents: 0,
-      units: [{ id: "u1", number: "101", resident: "", active: true }],
+      openingReserveCents: 0,
+      units: [
+        { id: "u1", number: "101", resident: "", active: true, exempt: false },
+      ],
       months: [],
     });
   });

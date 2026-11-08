@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { initialState, type CondoState } from "@shared/condo";
+import { condoStateSchema, initialState, type CondoState } from "@shared/condo";
 import { DEFAULT_PUBLIC_CONDO_NAME } from "./condo-config";
 import { getPublicDashboard, toPublicDashboard } from "./publicDashboard";
 
@@ -20,11 +20,12 @@ function fixtureState(): CondoState {
     competence: string,
     status: "open" | "closed",
     payments: CondoState["months"][number]["payments"]
-  ): CondoState["months"][number] => ({
+  ) => ({
     id,
     competence,
     status,
-    reservePerUnitCents: 0,
+    feeCents: 500,
+    waterPriceCents: 1000,
     readings: [
       {
         unitId: "u1",
@@ -58,7 +59,7 @@ function fixtureState(): CondoState {
     payments,
     bankBalanceCents: 123,
   });
-  return {
+  return condoStateSchema.parse({
     name: "Condomínio Público",
     openingBalanceCents: 10000,
     units: [
@@ -71,7 +72,7 @@ function fixtureState(): CondoState {
       ]),
       month("m-new", "2026-02", "open", []),
     ],
-  };
+  });
 }
 
 describe("quadro público", () => {
@@ -84,22 +85,30 @@ describe("quadro público", () => {
     expect(result.month?.quotas).toEqual([
       {
         number: "101",
+        exempt: false,
         waterMilli: 3000,
         gasMilli: 0,
         waterCents: 3000,
         gasCents: 0,
-        commonCents: 500,
+        feeCents: 500,
+        maintenanceCents: 0,
         reserveCents: 0,
+        adminCents: 0,
+        extraCents: 0,
         totalCents: 3500,
       },
       {
         number: "102",
+        exempt: false,
         waterMilli: 1000,
         gasMilli: 0,
         waterCents: 1000,
         gasCents: 0,
-        commonCents: 500,
+        feeCents: 500,
+        maintenanceCents: 0,
         reserveCents: 0,
+        adminCents: 0,
+        extraCents: 0,
         totalCents: 1500,
       },
     ]);
@@ -108,6 +117,12 @@ describe("quadro público", () => {
       receivedCents: 0,
       expensesCents: 5000,
       closingCents: 10000 + 3500 - 5000 - 5000,
+      condoOpeningCents: 10000 + 3500 - 5000,
+      condoClosingCents: 10000 + 3500 - 5000 - 5000,
+      reserveOpeningCents: 0,
+      reserveInCents: 0,
+      reserveOutCents: 0,
+      reserveClosingCents: 0,
     });
     expect(result.month?.categories).toEqual([
       { category: "Água", amountCents: 4000 },

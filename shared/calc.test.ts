@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CondoState, Month } from "./condo";
-import { buildReports, calculateQuotas, newMonth, splitCents } from "./calc";
+import { buildReports, calculateQuotas, newMonth } from "./calc";
 import { upgradeState } from "./upgrade";
 
 const units = [
@@ -14,14 +14,25 @@ const units = [
   "402",
   "501",
   "502",
-].map((number, i) => ({ id: `u${9 - i}`, number, resident: "", active: true }));
+].map((number, i) => ({
+  id: `u${9 - i}`,
+  number,
+  resident: "",
+  active: true,
+  exempt: false,
+}));
 
 function month(over: Partial<Month> = {}): Month {
   return {
     id: "m1",
     competence: "2026-10",
     status: "open",
-    reservePerUnitCents: 0,
+    feeCents: 0,
+    maintenanceBp: 0,
+    reserveBp: 0,
+    adminCents: 0,
+    waterPriceCents: 0,
+    gasPriceCents: 0,
     readings: units.map((u, i) => ({
       unitId: u.id,
       waterPrevious: 1000,
@@ -31,6 +42,7 @@ function month(over: Partial<Month> = {}): Month {
     })),
     expenses: [],
     payments: [],
+    extraCharges: [],
     bankBalanceCents: null,
     ...over,
   };
@@ -38,84 +50,91 @@ function month(over: Partial<Month> = {}): Month {
 
 const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
-describe("divisão em centavos", () => {
-  it("preserva todos os centavos e desempata pela ordem dos apartamentos", () => {
-    const parts = splitCents(
-      10001,
-      units.map(u => ({ key: u.id, weight: 1 }))
-    );
-    expect(sum(Object.values(parts))).toBe(10001);
-    expect(parts[units[0].id]).toBe(1001);
-    expect(parts[units[9].id]).toBe(1000);
-  });
-
-  it("consumo zero não paga; todos zero divide igual", () => {
-    expect(
-      splitCents(300, [
-        { key: "a", weight: 0 },
-        { key: "b", weight: 1 },
-        { key: "c", weight: 2 },
-      ])
-    ).toEqual({ a: 0, b: 100, c: 200 });
-    expect(
-      splitCents(300, [
-        { key: "a", weight: 0 },
-        { key: "b", weight: 0 },
-        { key: "c", weight: 0 },
-      ])
-    ).toEqual({ a: 100, b: 100, c: 100 });
-  });
-});
-
 describe("cota do mês", () => {
-  it("água e gás pelo consumo, resto igual, soma igual às despesas", () => {
+  it("consumo × preço, taxa fixa, fundos em % e isento", () => {
+    const exemptUnits = units.map(u =>
+      u.number === "101" ? { ...u, exempt: true } : u
+    );
     const m = month({
-      reservePerUnitCents: 2000,
+      feeCents: 30000,
+      maintenanceBp: 1500,
+      reserveBp: 2000,
+      adminCents: 2000,
+      waterPriceCents: 500,
+      gasPriceCents: 2000,
+      extraCharges: [
+        {
+          id: "x",
+          unitId: units[1].id,
+          description: "Multa",
+          amountCents: 5000,
+        },
+      ],
       expenses: [
         {
           id: "e1",
           description: "Copasa",
           category: "Água",
-          amountCents: 55000,
-        },
-        { id: "e2", description: "Gás", category: "Gás", amountCents: 12345 },
-        {
-          id: "e3",
-          description: "Faxina",
-          category: "Limpeza",
-          amountCents: 40000,
-        },
-        {
-          id: "e4",
-          description: "Lâmpadas",
-          category: "Manutenção",
-          amountCents: 3333,
+          amountCents: 99999,
+          fromReserve: false,
         },
       ],
     });
-    const { quotas, totals } = calculateQuotas(m, units);
+    const { quotas, totals } = calculateQuotas(m, exemptUnits);
     expect(quotas.map(q => q.number)).toEqual(units.map(u => u.number));
-    // 55 m³ no total: R$ 10,00 por m³
-    expect(quotas.map(q => q.waterCents)).toEqual([
-      1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000,
-    ]);
+    // 101: 1 m³ de água, 0,5 m³ de gás; isento: só consumo e fundo de reserva
+    expect(quotas[0]).toMatchObject({
+      waterCents: 500,
+      gasCents: 1000,
+      feeCents: 0,
+      maintenanceCents: 0,
+      reserveCents: 6000,
+      adminCents: 0,
+      totalCents: 500 + 1000 + 6000,
+    });
+    // 102: 2 m³, gás 0,5 m³, taxa + 15% + 20% + adm + multa
+    expect(quotas[1].totalCents).toBe(
+      1000 + 1000 + 30000 + 4500 + 6000 + 2000 + 5000
+    );
+    // quem não usou gás não paga gás; a conta da Copasa não entra na cota
     expect(quotas.slice(5).every(q => q.gasCents === 0)).toBe(true);
-    expect(sum(quotas.map(q => q.gasCents))).toBe(12345);
-    expect(sum(quotas.map(q => q.commonCents))).toBe(43333);
-    expect(totals.expensesCents).toBe(55000 + 12345 + 43333);
-    expect(totals.quotasCents).toBe(totals.expensesCents + 10 * 2000);
+    expect(totals.reserveCents).toBe(10 * 6000);
+    expect(totals.expensesCents).toBe(99999);
+  });
+
+  it("arredonda só o total do apartamento, como a planilha", () => {
+    const m = month({
+      feeCents: 35662,
+      maintenanceBp: 1500, // 53,493
+      reserveBp: 2000, // 71,324
+      adminCents: 2675,
+      readings: [
+        {
+          unitId: units[0].id,
+          waterPrevious: 0,
+          waterCurrent: 0,
+          gasPrevious: 0,
+          gasCurrent: 0,
+        },
+      ],
+    });
+    const [q] = calculateQuotas(m, units).quotas;
+    expect(q.maintenanceCents + q.reserveCents).toBe(5349 + 7132);
+    expect(q.totalCents).toBe(50819); // 508,187 → 508,19
   });
 });
 
 describe("encadeamento entre meses", () => {
   it("leva o saldo do caixa e o débito de quem não pagou", () => {
     const oct = month({
+      feeCents: 10000,
       expenses: [
         {
           id: "e1",
           description: "Faxina",
           category: "Limpeza",
           amountCents: 100000,
+          fromReserve: false,
         },
       ],
       payments: units.slice(1).map(u => ({ unitId: u.id, amountCents: 10000 })), // 101 não pagou
@@ -124,17 +143,20 @@ describe("encadeamento entre meses", () => {
     const state: CondoState = {
       name: "X",
       openingBalanceCents: 50000,
+      openingReserveCents: 0,
       units,
       months: [oct],
     };
     const nov = newMonth(state, "2026-11", "m2");
     expect(nov.readings[0].waterPrevious).toBe(oct.readings[0].waterCurrent);
+    expect(nov.feeCents).toBe(10000);
     nov.expenses = [
       {
         id: "e9",
         description: "Faxina",
         category: "Limpeza",
         amountCents: 100000,
+        fromReserve: false,
       },
     ];
     nov.payments = [{ unitId: units[0].id, amountCents: 20000 }]; // 101 paga outubro e novembro
@@ -158,14 +180,15 @@ describe("encadeamento entre meses", () => {
   it("apartamento fora do mês continua aparecendo enquanto tiver saldo", () => {
     const oct = month({
       readings: [month().readings[0]],
-      expenses: [
-        { id: "e", description: "x", category: "Outros", amountCents: 500 },
+      extraCharges: [
+        { id: "e", unitId: units[0].id, description: "x", amountCents: 500 },
       ],
     });
     const nov = month({ id: "m2", competence: "2026-11", readings: [] });
     const reports = buildReports({
       name: "X",
       openingBalanceCents: 0,
+      openingReserveCents: 0,
       units,
       months: [oct, nov],
     });
