@@ -41,6 +41,7 @@ import {
   Notice,
   Panel,
 } from "@/components/condo/condo-ui";
+import { BuildingBoard } from "@/components/condo/building-board";
 import {
   CashLines,
   QuotaTable,
@@ -270,6 +271,23 @@ function PainelTab({
           igualmente.
         </Notice>
       ) : null}
+
+      <BuildingBoard
+        title="Situação no prédio"
+        units={statements.map(s => ({
+          number: s.number,
+          value: formatMoney(s.dueCents),
+          note:
+            s.balanceCents > 0
+              ? `Falta ${formatMoney(s.balanceCents)}`
+              : s.balanceCents < 0
+                ? `Crédito ${formatMoney(-s.balanceCents)}`
+                : "Pago",
+          tone:
+            s.balanceCents > 0 ? "due" : s.balanceCents < 0 ? "credit" : "ok",
+        }))}
+        footer="A pagar no mês"
+      />
 
       <Panel title="Situação de cada apartamento">
         <div className="table-wrap">

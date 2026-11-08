@@ -1,23 +1,11 @@
 import { type ReactNode } from "react";
-import { Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const logoUrl =
-  "/manus-storage/async-images/30vFO89ur9tqpGbBC2ukR7/image-1.webp";
-
+/** Logo: a fachada do prédio com a coluna de pastilha verde-água. */
 export function Brand({ name = "San Gimignano" }: { name?: string }) {
   return (
     <span className="brand">
-      <span className="brand-mark">
-        <img
-          src={logoUrl}
-          alt=""
-          onError={event => {
-            event.currentTarget.style.display = "none";
-          }}
-        />
-        <Building2 size={20} strokeWidth={1.7} />
-      </span>
+      <img className="brand-mark" src="/favicon.svg" alt="" />
       <strong>{name}</strong>
     </span>
   );
