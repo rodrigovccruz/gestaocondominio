@@ -19,6 +19,7 @@ import {
   type Expense,
   type ExpenseCategory,
   type ExtraCharge,
+  type Tariffs,
   type Month,
   type Payment,
   type Reading,
@@ -30,6 +31,8 @@ import {
   formatMoney,
   formatMonth,
   formatPercent,
+  chargesFromTariffs,
+  tariffFeeCents,
   newMonth,
   sortUnits,
   type MonthReport,
@@ -370,12 +373,14 @@ const percentInput = (bp: number) => String(bp / 100).replace(".", ",");
 function CobrancaTab({
   month,
   units,
+  tariffs,
   locked,
   onSaveValues,
   onSaveExtras,
 }: {
   month: Month;
   units: Unit[];
+  tariffs: Tariffs;
   locked: boolean;
   onSaveValues: (values: ChargeValues) => Promise<boolean>;
   onSaveExtras: (extras: ExtraCharge[], message: string) => Promise<boolean>;
@@ -511,14 +516,35 @@ function CobrancaTab({
               </Button>
             </div>
           ) : null}
-          <div>
+          <div className="form-row">
             <Button type="submit" disabled={locked}>
               Salvar valores
             </Button>
+            {!locked ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const c = chargesFromTariffs(tariffs);
+                  setFee(moneyInput(c.feeCents));
+                  setMaintenance(percentInput(c.maintenanceBp));
+                  setReserve(percentInput(c.reserveBp));
+                  setAdmin(moneyInput(c.adminCents));
+                  setWater(moneyInput(c.waterPriceCents));
+                  setGas(moneyInput(c.gasPriceCents));
+                  toast.message(
+                    "Tarifas do cadastro preenchidas. Salve para aplicar."
+                  );
+                }}
+              >
+                Usar tarifas do cadastro
+              </Button>
+            ) : null}
           </div>
         </form>
         <p className="muted small">
-          Os valores vêm do mês anterior. Taxa de {formatMoney(month.feeCents)},
+          Estes valores valem só para este mês (vieram das tarifas do Cadastro
+          quando o mês foi criado). Taxa de {formatMoney(month.feeCents)},
           manutenção {formatPercent(month.maintenanceBp)}% e reserva{" "}
           {formatPercent(month.reserveBp)}% da taxa. Isentos pagam só consumo,
           fundo de reserva e avulsos.
@@ -1081,6 +1107,26 @@ function CadastroTab({
   const [openingReserve, setOpeningReserve] = useState(
     moneyInput(state.openingReserveCents)
   );
+  const t = state.tariffs;
+  const [wage, setWage] = useState(moneyInput(t.minimumWageCents));
+  const [feePct, setFeePct] = useState(percentInput(t.feeBp));
+  const [maintPct, setMaintPct] = useState(percentInput(t.maintenanceBp));
+  const [reservePct, setReservePct] = useState(percentInput(t.reserveBp));
+  const [adminValue, setAdminValue] = useState(moneyInput(t.adminCents));
+  const [waterValue, setWaterValue] = useState(moneyInput(t.waterPriceCents));
+  const [gasValue, setGasValue] = useState(moneyInput(t.gasPriceCents));
+  // Percentual usa o mesmo formato do dinheiro: "22" → 2200, "7,5" → 750.
+  const tariffs = {
+    minimumWageCents: parseMoneyInput(wage || "0"),
+    feeBp: parseMoneyInput(feePct || "0"),
+    maintenanceBp: parseMoneyInput(maintPct || "0"),
+    reserveBp: parseMoneyInput(reservePct || "0"),
+    adminCents: parseMoneyInput(adminValue || "0"),
+    waterPriceCents: parseMoneyInput(waterValue || "0"),
+    gasPriceCents: parseMoneyInput(gasValue || "0"),
+  };
+  const tariffsValid = Object.values(tariffs).every(v => v !== null);
+  const feePreview = tariffsValid ? tariffFeeCents(tariffs as Tariffs) : null;
   const [units, setUnits] = useState<UnitDraft[]>(() => sortUnits(state.units));
 
   const update = (id: string, patch: Partial<UnitDraft>) =>
@@ -1094,6 +1140,13 @@ function CadastroTab({
     if (!name.trim()) return void toast.error("Informe o nome do condomínio.");
     if (openingBalanceCents === null || openingReserveCents === null)
       return void toast.error("Saldo inicial inválido.");
+    if (!tariffsValid) return void toast.error("Alguma tarifa está inválida.");
+    if (
+      tariffs.feeBp! > 10000 ||
+      tariffs.maintenanceBp! > 10000 ||
+      tariffs.reserveBp! > 10000
+    )
+      return void toast.error("Percentual acima de 100%.");
     const cleaned = units
       .map(u => ({
         ...u,
@@ -1108,6 +1161,7 @@ function CadastroTab({
       name: name.trim(),
       openingBalanceCents,
       openingReserveCents,
+      tariffs: tariffs as Tariffs,
       units: cleaned,
     });
   };
@@ -1147,6 +1201,40 @@ function CadastroTab({
         <p className="muted small">
           O saldo no banco inclui o fundo de reserva. O caixa do condomínio é o
           saldo menos o fundo (pode ficar negativo).
+        </p>
+      </Panel>
+
+      <Panel title="Tarifas vigentes">
+        <div className="form-grid">
+          {[
+            ["Salário mínimo (R$)", wage, setWage],
+            ["Taxa de condomínio (% do salário mínimo)", feePct, setFeePct],
+            ["Fundo de manutenção (% da taxa)", maintPct, setMaintPct],
+            ["Fundo de reserva (% da taxa)", reservePct, setReservePct],
+            ["Taxa de administração por apto (R$)", adminValue, setAdminValue],
+            ["Preço do m³ de água (R$)", waterValue, setWaterValue],
+            ["Preço do m³ de gás (R$)", gasValue, setGasValue],
+          ].map(([label, value, set]) => (
+            <label className="field" key={label as string}>
+              <span>{label as string}</span>
+              <input
+                className="input"
+                inputMode="decimal"
+                placeholder="0"
+                value={value as string}
+                onChange={event =>
+                  (set as (v: string) => void)(event.target.value)
+                }
+              />
+            </label>
+          ))}
+        </div>
+        <p className="muted small">
+          Taxa de condomínio por apto:{" "}
+          <strong>{feePreview === null ? "–" : formatMoney(feePreview)}</strong>
+          . Cada mês novo copia estas tarifas e guarda a cópia: mudar o salário
+          mínimo não altera meses já criados. A água pode ser ajustada em cada
+          mês pela conta da Copasa (aba Cobrança).
         </p>
       </Panel>
 
@@ -1498,6 +1586,7 @@ function Workspace({
             key={tabKey}
             month={month}
             units={units}
+            tariffs={state.tariffs}
             locked={locked}
             onSaveValues={values =>
               updateMonth(m => ({ ...m, ...values }), "Valores salvos.")

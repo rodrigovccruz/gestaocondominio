@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { CondoState, Month } from "./condo";
+import { emptyTariffs, type CondoState, type Month } from "./condo";
 import { buildReports, calculateQuotas, newMonth } from "./calc";
 import { upgradeState } from "./upgrade";
 
@@ -144,6 +144,7 @@ describe("encadeamento entre meses", () => {
       name: "X",
       openingBalanceCents: 50000,
       openingReserveCents: 0,
+      tariffs: emptyTariffs,
       units,
       months: [oct],
     };
@@ -189,6 +190,7 @@ describe("encadeamento entre meses", () => {
       name: "X",
       openingBalanceCents: 0,
       openingReserveCents: 0,
+      tariffs: emptyTariffs,
       units,
       months: [oct, nov],
     });

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { initialState, type CondoState } from "../shared/condo";
+import { emptyTariffs, initialState, type CondoState } from "../shared/condo";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";
 import { parseState, validateClosedCompetenceChanges } from "./condo";
@@ -252,6 +252,7 @@ describe("condo router e persistência", () => {
       name: "Condomínio San Gimignano",
       openingBalanceCents: 0,
       openingReserveCents: 0,
+      tariffs: emptyTariffs,
       units: [
         { id: "u1", number: "101", resident: "", active: true, exempt: false },
       ],

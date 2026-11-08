@@ -1,4 +1,4 @@
-import type { CondoState, Month, Unit } from "./condo";
+import type { CondoState, Month, Tariffs, Unit } from "./condo";
 
 /**
  * Regras do condomínio (as mesmas da planilha):
@@ -267,9 +267,29 @@ export function buildReports(state: CondoState): MonthReport[] {
   });
 }
 
+/** Taxa de condomínio = % do salário mínimo, arredondada em centavos. */
+export function tariffFeeCents(t: Tariffs) {
+  return toCents(byPercent(t.minimumWageCents, t.feeBp));
+}
+
+/** Valores de cobrança de um mês a partir das tarifas vigentes. */
+export function chargesFromTariffs(t: Tariffs) {
+  return {
+    feeCents: tariffFeeCents(t),
+    maintenanceBp: t.maintenanceBp,
+    reserveBp: t.reserveBp,
+    adminCents: t.adminCents,
+    waterPriceCents: t.waterPriceCents,
+    gasPriceCents: t.gasPriceCents,
+  };
+}
+
+const hasTariffs = (t: Tariffs) => Object.values(t).some(v => v > 0);
+
 /**
  * Leitura anterior do novo mês = leitura atual do mês anterior.
- * Taxa, percentuais e preços do m³ vêm do mês anterior.
+ * Taxa, percentuais e preços do m³ vêm das tarifas vigentes (Cadastro);
+ * sem tarifas cadastradas, vêm do mês anterior. O mês guarda a cópia.
  */
 export function newMonth(
   state: CondoState,
@@ -284,12 +304,16 @@ export function newMonth(
     id,
     competence,
     status: "open",
-    feeCents: previous?.feeCents ?? 0,
-    maintenanceBp: previous?.maintenanceBp ?? 0,
-    reserveBp: previous?.reserveBp ?? 0,
-    adminCents: previous?.adminCents ?? 0,
-    waterPriceCents: previous?.waterPriceCents ?? 0,
-    gasPriceCents: previous?.gasPriceCents ?? 0,
+    ...(hasTariffs(state.tariffs)
+      ? chargesFromTariffs(state.tariffs)
+      : {
+          feeCents: previous?.feeCents ?? 0,
+          maintenanceBp: previous?.maintenanceBp ?? 0,
+          reserveBp: previous?.reserveBp ?? 0,
+          adminCents: previous?.adminCents ?? 0,
+          waterPriceCents: previous?.waterPriceCents ?? 0,
+          gasPriceCents: previous?.gasPriceCents ?? 0,
+        }),
     readings: sortUnits(state.units)
       .filter(u => u.active)
       .map(u => {

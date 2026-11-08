@@ -72,6 +72,28 @@ export const paymentSchema = z.object({
   amountCents: money,
 });
 
+/** Tarifas vigentes: o mês novo copia daqui (e guarda a cópia). */
+export const tariffsSchema = z.object({
+  minimumWageCents: money,
+  /** Taxa de condomínio em % do salário mínimo: 2200 = 22%. */
+  feeBp: basisPoints,
+  maintenanceBp: basisPoints,
+  reserveBp: basisPoints,
+  adminCents: money,
+  waterPriceCents: money,
+  gasPriceCents: money,
+});
+
+export const emptyTariffs: z.infer<typeof tariffsSchema> = {
+  minimumWageCents: 0,
+  feeBp: 0,
+  maintenanceBp: 0,
+  reserveBp: 0,
+  adminCents: 0,
+  waterPriceCents: 0,
+  gasPriceCents: 0,
+};
+
 export const monthSchema = z.object({
   id,
   competence: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
@@ -102,6 +124,7 @@ const baseStateSchema = z
     openingBalanceCents: signedMoney,
     /** Quanto do saldo inicial pertence ao fundo de reserva. */
     openingReserveCents: signedMoney.default(0),
+    tariffs: tariffsSchema.default(emptyTariffs),
     units: z.array(unitSchema).max(1000),
     months: z.array(monthSchema).max(240),
   })
@@ -180,12 +203,14 @@ export type Expense = z.infer<typeof expenseSchema>;
 export type Payment = z.infer<typeof paymentSchema>;
 export type Month = z.infer<typeof monthSchema>;
 export type ExtraCharge = z.infer<typeof extraChargeSchema>;
+export type Tariffs = z.infer<typeof tariffsSchema>;
 export type CondoState = z.infer<typeof baseStateSchema>;
 
 export const initialState: CondoState = {
   name: "Condomínio San Gimignano",
   openingBalanceCents: 0,
   openingReserveCents: 0,
+  tariffs: emptyTariffs,
   units: [],
   months: [],
 };

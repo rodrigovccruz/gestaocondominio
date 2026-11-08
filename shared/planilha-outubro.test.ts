@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildReports, calculateQuotas } from "./calc";
+import {
+  buildReports,
+  calculateQuotas,
+  newMonth,
+  tariffFeeCents,
+} from "./calc";
 import { condoStateSchema, type CondoState } from "./condo";
 
 /** Outubro/2026 da planilha do condomínio (revisada), para conferir o cálculo. */
@@ -130,5 +135,50 @@ describe("outubro/2026 igual à planilha", () => {
     expect(cash.reserveClosingCents).toBe(1206905); // R$ 12.069,05
     expect(cash.condoClosingCents).toBe(-1018778); // −R$ 10.187,78
     expect(cash.closingCents).toBe(1206905 - 1018778);
+  });
+});
+
+describe("tarifas vigentes no cadastro", () => {
+  const tariffs = {
+    minimumWageCents: 162100, // R$ 1.621,00
+    feeBp: 2200, // 22% do salário mínimo
+    maintenanceBp: 1500,
+    reserveBp: 2000,
+    adminCents: 2675,
+    waterPriceCents: 467,
+    gasPriceCents: 2363,
+  };
+
+  it("taxa de condomínio = 22% do salário mínimo = R$ 356,62", () => {
+    expect(tariffFeeCents(tariffs)).toBe(35662);
+  });
+
+  it("mês novo copia as tarifas e guarda a cópia", () => {
+    const withTariffs = { ...state, tariffs };
+    const nov = newMonth(withTariffs, "2026-11", "nov");
+    expect(nov).toMatchObject({
+      feeCents: 35662,
+      maintenanceBp: 1500,
+      reserveBp: 2000,
+      adminCents: 2675,
+      waterPriceCents: 467,
+      gasPriceCents: 2363,
+    });
+    // leitura anterior de novembro = atual de outubro
+    expect(nov.readings[0].waterPrevious).toBe(1464165);
+    // salário mínimo novo não muda o mês já criado
+    const jan = newMonth(
+      { ...withTariffs, tariffs: { ...tariffs, minimumWageCents: 170000 } },
+      "2027-01",
+      "jan"
+    );
+    expect(jan.feeCents).toBe(37400);
+    expect(nov.feeCents).toBe(35662);
+  });
+
+  it("sem tarifas cadastradas, o mês novo copia o mês anterior", () => {
+    const nov = newMonth(state, "2026-11", "nov");
+    expect(nov.feeCents).toBe(35662);
+    expect(nov.gasPriceCents).toBe(2363);
   });
 });

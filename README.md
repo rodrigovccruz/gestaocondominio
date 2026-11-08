@@ -10,7 +10,8 @@ App web para a gestão financeira de um condomínio pequeno (10 apartamentos). O
 
 O mês do síndico:
 
-1. **Novo mês**: as leituras anteriores, a taxa, os percentuais e os preços do m³ vêm do mês passado.
+0. **Cadastro** (uma vez, e quando mudar): apartamentos, isentos e as **tarifas vigentes**: salário mínimo, taxa de condomínio em % do mínimo, fundo de manutenção e de reserva em % da taxa, taxa de administração e preços do m³ de água e gás.
+1. **Novo mês**: as leituras anteriores vêm do mês passado; taxa, percentuais e preços vêm das tarifas vigentes. O mês guarda a cópia, então mudar o salário mínimo não altera meses já criados.
 2. **Leituras**: digita a leitura atual de água e gás de cada apartamento.
 3. **Cobrança**: confere a taxa, os percentuais e os preços do m³ (a água pode ser calculada pela conta da Copasa dos aptos) e lança cobranças avulsas (multa, reembolso).
 4. **Despesas**: lança cada conta paga (marcando as que saem do fundo de reserva).
