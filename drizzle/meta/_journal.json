@@ -1,33 +1,12 @@
 {
   "version": "7",
-  "dialect": "mysql",
+  "dialect": "postgresql",
   "entries": [
     {
       "idx": 0,
-      "version": "5",
-      "when": 1788785580464,
-      "tag": "0000_initial_users",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "5",
-      "when": 1794056007559,
-      "tag": "0001_smooth_punisher",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "5",
-      "when": 1794064177492,
-      "tag": "0002_messy_rhodey",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "5",
-      "when": 1794066340749,
-      "tag": "0003_needy_the_renegades",
+      "version": "7",
+      "when": 1794084232242,
+      "tag": "0000_inicial",
       "breakpoints": true
     }
   ]

@@ -1,6 +1,12 @@
 {
   "routes": [
-    { "path": "/", "title": "Despesas consolidadas" },
-    { "path": "/sindico", "title": "Área do síndico" }
+    {
+      "path": "/",
+      "title": "Quadro do condomínio"
+    },
+    {
+      "path": "/sindico",
+      "title": "Área do síndico"
+    }
   ]
 }

@@ -36,24 +36,4 @@ describe("public dashboard source contract", () => {
     expect(publicSource).not.toContain("email");
     expect(publicSource).not.toContain("resident");
   });
-
-  it("keeps public expense fields limited to the approved DTO", () => {
-    const expense = {
-      id: "expense-1",
-      description: "Limpeza",
-      category: "Limpeza",
-      date: "2026-10-04",
-      amountCents: 1000,
-    };
-    expect(Object.keys(expense)).toEqual([
-      "id",
-      "description",
-      "category",
-      "date",
-      "amountCents",
-    ]);
-    expect(expense).not.toHaveProperty("resident");
-    expect(expense).not.toHaveProperty("email");
-    expect(expense).not.toHaveProperty("unit");
-  });
 });
