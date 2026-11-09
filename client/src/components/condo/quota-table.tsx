@@ -100,7 +100,10 @@ export function QuotaTable({
   );
 }
 
-/** Caixa do mês: o total do banco e como ele se divide. */
+/**
+ * Caixa do mês: o dinheiro que existe agora e a previsão ao fim do mês se
+ * todos pagarem, com a parte do fundo de reserva e a do condomínio.
+ */
 export function CashLines({ cash }: { cash: PublicCash }) {
   return (
     <dl className="lines">
@@ -117,14 +120,16 @@ export function CashLines({ cash }: { cash: PublicCash }) {
         <dd className="bad">− {formatMoney(cash.expensesCents)}</dd>
       </div>
       <div className="lines-total">
-        <dt>Saldo em caixa</dt>
+        <dt>Dinheiro agora</dt>
         <dd>{formatMoney(cash.closingCents)}</dd>
       </div>
       <div>
-        <dt>Condomínio</dt>
-        <dd className={cash.condoClosingCents < 0 ? "bad" : undefined}>
-          {formatMoney(cash.condoClosingCents)}
-        </dd>
+        <dt>A receber dos apartamentos</dt>
+        <dd className="good">+ {formatMoney(cash.toReceiveCents)}</dd>
+      </div>
+      <div className="lines-total">
+        <dt>Previsão ao fim do mês (se todos pagarem)</dt>
+        <dd>{formatMoney(cash.projectedCents)}</dd>
       </div>
       <div>
         <dt>
@@ -139,6 +144,12 @@ export function CashLines({ cash }: { cash: PublicCash }) {
           </small>
         </dt>
         <dd>{formatMoney(cash.reserveClosingCents)}</dd>
+      </div>
+      <div>
+        <dt>Condomínio (previsão − fundo)</dt>
+        <dd className={cash.projectedCondoCents < 0 ? "bad" : undefined}>
+          {formatMoney(cash.projectedCondoCents)}
+        </dd>
       </div>
     </dl>
   );

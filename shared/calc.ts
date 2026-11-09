@@ -181,6 +181,12 @@ export type CashSummary = {
   /** Despesas pagas com o fundo de reserva. */
   reserveOutCents: number;
   reserveClosingCents: number;
+  /** O que os apartamentos ainda devem (do mês e de antes). */
+  toReceiveCents: number;
+  /** Previsão do saldo ao fim do mês, se todos pagarem. */
+  projectedCents: number;
+  /** Parte da previsão que fica para o condomínio (previsão − fundo). */
+  projectedCondoCents: number;
 };
 
 export type MonthReport = {
@@ -233,6 +239,10 @@ export function buildReports(state: CondoState): MonthReport[] {
       });
 
     const receivedCents = month.payments.reduce((s, p) => s + p.amountCents, 0);
+    const toReceiveCents = statements.reduce(
+      (sum, s) => sum + Math.max(0, s.balanceCents),
+      0
+    );
     const openingCents = cash;
     const closingCents = openingCents + receivedCents - totals.expensesCents;
     cash = closingCents;
@@ -262,6 +272,10 @@ export function buildReports(state: CondoState): MonthReport[] {
         reserveInCents: totals.reserveCents,
         reserveOutCents: totals.reserveExpensesCents,
         reserveClosingCents,
+        toReceiveCents,
+        projectedCents: closingCents + toReceiveCents,
+        projectedCondoCents:
+          closingCents + toReceiveCents - reserveClosingCents,
       },
     };
   });

@@ -123,6 +123,10 @@ describe("quadro público", () => {
       reserveInCents: 0,
       reserveOutCents: 0,
       reserveClosingCents: 0,
+      // 101 pagou janeiro; fevereiro ninguém pagou: 3500 + 1500 × 2
+      toReceiveCents: 6500,
+      projectedCents: 10000 + 3500 - 5000 - 5000 + 6500,
+      projectedCondoCents: 10000 + 3500 - 5000 - 5000 + 6500,
     });
     expect(result.month?.categories).toEqual([
       { category: "Água", amountCents: 4000 },

@@ -64,6 +64,9 @@ export function toPublicDashboard(
         reserveInCents: cash.reserveInCents,
         reserveOutCents: cash.reserveOutCents,
         reserveClosingCents: cash.reserveClosingCents,
+        toReceiveCents: cash.toReceiveCents,
+        projectedCents: cash.projectedCents,
+        projectedCondoCents: cash.projectedCondoCents,
       },
     },
   };

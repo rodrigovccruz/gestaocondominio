@@ -138,6 +138,17 @@ describe("outubro/2026 igual à planilha", () => {
   });
 });
 
+describe("previsão do caixa sem pagamentos lançados", () => {
+  it("dinheiro agora, a receber e previsão batem com a planilha", () => {
+    const { cash } = buildReports(state)[0];
+    expect(cash.closingCents).toBe(121558 - 514215); // −R$ 3.926,57
+    expect(cash.toReceiveCents).toBe(580784); // R$ 5.807,84
+    expect(cash.projectedCents).toBe(188127); // R$ 1.881,27
+    expect(cash.reserveClosingCents).toBe(1206905); // R$ 12.069,05
+    expect(cash.projectedCondoCents).toBe(-1018778); // −R$ 10.187,78
+  });
+});
+
 describe("tarifas vigentes no cadastro", () => {
   const tariffs = {
     minimumWageCents: 162100, // R$ 1.621,00

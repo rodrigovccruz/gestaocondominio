@@ -245,27 +245,24 @@ function PainelTab({
   onDelete: () => void;
 }) {
   const { totals, statements, cash, quotas } = report;
-  const toReceive = statements.reduce(
-    (sum, s) => sum + Math.max(0, s.dueCents),
-    0
-  );
   const owing = statements.filter(s => s.balanceCents > 0).length;
 
   return (
     <>
       <div className="metrics">
         <Metric
-          label="Despesas do mês"
-          value={formatMoney(totals.expensesCents)}
-        />
-        <Metric label="A receber" value={formatMoney(toReceive)} />
-        <Metric
           label="Recebido"
           value={formatMoney(cash.receivedCents)}
           detail={owing ? `${owing} apto(s) com saldo devedor` : "Todos em dia"}
           tone={owing ? "bad" : "good"}
         />
-        <Metric label="Saldo em caixa" value={formatMoney(cash.closingCents)} />
+        <Metric label="A receber" value={formatMoney(cash.toReceiveCents)} />
+        <Metric label="Dinheiro agora" value={formatMoney(cash.closingCents)} />
+        <Metric
+          label="Previsão fim do mês"
+          value={formatMoney(cash.projectedCents)}
+          detail="se todos pagarem"
+        />
       </div>
 
       {!report.month.expenses.length ? (

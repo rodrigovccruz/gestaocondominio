@@ -69,12 +69,13 @@ function BoardContent({
           value={formatMoney(month.totals.expensesCents)}
         />
         <Metric
-          label="Condomínio"
-          value={formatMoney(month.cash.condoClosingCents)}
+          label="Dinheiro agora"
+          value={formatMoney(month.cash.closingCents)}
         />
         <Metric
-          label="Fundo de reserva"
-          value={formatMoney(month.cash.reserveClosingCents)}
+          label="Previsão fim do mês"
+          value={formatMoney(month.cash.projectedCents)}
+          detail="se todos pagarem"
         />
       </div>
 
