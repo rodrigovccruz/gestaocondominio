@@ -359,8 +359,32 @@ select:focus-visible {
 .lines .lines-total dt {
   color: inherit;
 }
+.lines .lines-total + div {
+  border-top: 1px solid var(--line);
+}
+.lines dt small {
+  font-size: 12px;
+}
 
 /* Formulários */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px 12px;
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.check input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--forest);
+}
 .form-row {
   display: flex;
   flex-wrap: wrap;

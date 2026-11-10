@@ -1,4 +1,8 @@
+import type { CashSummary, MonthTotals, UnitQuota } from "./calc";
 import type { ExpenseCategory } from "./condo";
+
+/** Caixa sem o extrato do banco (que fica só para o síndico). */
+export type PublicCash = Omit<CashSummary, "bankCents" | "differenceCents">;
 
 /**
  * O que o quadro público mostra. Sem nomes de moradores e sem quem está
@@ -12,34 +16,14 @@ export type PublicMonth = {
     description: string;
     category: ExpenseCategory;
     amountCents: number;
+    fromReserve: boolean;
+    paid: boolean;
+    paidOn: string | null;
   }[];
   categories: { category: ExpenseCategory; amountCents: number }[];
-  totals: {
-    expensesCents: number;
-    waterBillCents: number;
-    gasBillCents: number;
-    commonCents: number;
-    reserveCents: number;
-    quotasCents: number;
-    waterMilli: number;
-    gasMilli: number;
-  };
-  quotas: {
-    number: string;
-    waterMilli: number;
-    gasMilli: number;
-    waterCents: number;
-    gasCents: number;
-    commonCents: number;
-    reserveCents: number;
-    totalCents: number;
-  }[];
-  cash: {
-    openingCents: number;
-    receivedCents: number;
-    expensesCents: number;
-    closingCents: number;
-  };
+  totals: MonthTotals;
+  quotas: Omit<UnitQuota, "unitId">[];
+  cash: PublicCash;
 };
 
 export type PublicDashboard = {

@@ -26,6 +26,7 @@ export function firstState(
       number,
       resident: "",
       active: true,
+      exempt: false,
     })),
   };
 }

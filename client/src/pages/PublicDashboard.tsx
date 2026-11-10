@@ -11,7 +11,7 @@ import {
 import {
   CashLines,
   QuotaTable,
-  SplitRule,
+  ChargeRule,
 } from "@/components/condo/quota-table";
 import { BuildingBoard } from "@/components/condo/building-board";
 import { trpc } from "@/lib/trpc";
@@ -69,14 +69,20 @@ function BoardContent({
           value={formatMoney(month.totals.expensesCents)}
         />
         <Metric
-          label="Saldo em caixa"
+          label="Dinheiro agora"
           value={formatMoney(month.cash.closingCents)}
+        />
+        <Metric label="A pagar" value={formatMoney(month.cash.toPayCents)} />
+        <Metric
+          label="Previsão fim do mês"
+          value={formatMoney(month.cash.projectedCents)}
+          detail="se todos pagarem"
         />
       </div>
 
       <Panel title="Composição da cota">
-        <QuotaTable quotas={month.quotas} />
-        <SplitRule count={month.quotas.length} />
+        <QuotaTable quotas={month.quotas} totals={month.totals} />
+        <ChargeRule />
       </Panel>
 
       <Panel title="Despesas">
@@ -88,7 +94,11 @@ function BoardContent({
                   <tr key={e.id}>
                     <td>
                       {e.description}
-                      <small>{e.category}</small>
+                      <small>
+                        {e.category}
+                        {e.fromReserve ? " · fundo de reserva" : ""}
+                        {e.paid ? "" : " · a pagar"}
+                      </small>
                     </td>
                     <td className="num">{formatMoney(e.amountCents)}</td>
                   </tr>

@@ -50,7 +50,6 @@ export function upgradeState(value: unknown): unknown {
             id: m.id,
             competence: m.competence,
             status: m.status,
-            reservePerUnitCents: 0,
             readings: (m.charges ?? []).map(c => ({
               unitId: c.unitId,
               waterPrevious: c.waterPrevious,

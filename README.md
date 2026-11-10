@@ -10,26 +10,43 @@ App web para a gestão financeira de um condomínio pequeno (10 apartamentos). O
 
 O mês do síndico:
 
-1. **Novo mês**: as leituras anteriores e o fundo de reserva vêm do mês passado.
-2. **Despesas**: lança cada conta (Copasa, gás, faxina, manutenção...).
-3. **Leituras**: digita a leitura atual de água e gás de cada apartamento.
-4. **Pagamentos**: registra quanto cada apartamento pagou (o que entrou no banco).
-5. **Painel**: digita o saldo do extrato e vê se bateu. Fecha o mês.
+0. **Cadastro** (uma vez, e quando mudar): apartamentos, isentos e as **tarifas vigentes**: salário mínimo, taxa de condomínio em % do mínimo, fundo de manutenção e de reserva em % da taxa, taxa de administração e preços do m³ de água e gás.
+1. **Novo mês**: as leituras anteriores vêm do mês passado; taxa, percentuais e preços vêm das tarifas vigentes. O mês guarda a cópia, então mudar o salário mínimo não altera meses já criados.
+2. **Leituras**: digita a leitura atual de água e gás de cada apartamento.
+3. **Cobrança**: confere a taxa, os percentuais e os preços do m³ (a água pode ser calculada pela conta da Copasa dos aptos) e lança cobranças avulsas (multa, reembolso).
+4. **Despesas**: lança cada conta paga (marcando as que saem do fundo de reserva).
+5. **Pagamentos**: registra quanto cada apartamento pagou (o que entrou no banco).
+6. **Painel**: digita o saldo do extrato e vê se bateu. Fecha o mês.
 
 ## Regras de cálculo
 
-| Item                       | Como divide                                             |
-| -------------------------- | ------------------------------------------------------- |
-| Despesas da categoria Água | Pelo consumo de cada hidrômetro (m³ do apto ÷ m³ total) |
-| Despesas da categoria Gás  | Pelo consumo de cada medidor de gás                     |
-| Demais despesas            | Igual entre os apartamentos do mês                      |
-| Fundo de reserva           | Valor fixo por apartamento, definido no mês             |
+São as mesmas da planilha do condomínio (conferido com outubro/2026 em `shared/planilha-outubro.test.ts`).
 
-Se ninguém consumiu no mês, a conta é dividida igualmente. A soma das cotas é sempre igual ao total das despesas (mais o fundo): os centavos que sobram da divisão vão para quem tem o maior resto, em ordem de apartamento.
+| Item                  | Quanto cada apartamento paga                 |
+| --------------------- | -------------------------------------------- |
+| Água                  | Consumo do hidrômetro × preço do m³ do mês   |
+| Gás                   | Consumo do medidor × preço do m³ do mês      |
+| Taxa de condomínio    | Valor fixo por apartamento                   |
+| Fundo de manutenção   | % da taxa de condomínio                      |
+| Fundo de reserva      | % da taxa de condomínio (vai para o fundo)   |
+| Taxa de administração | Valor fixo por apartamento                   |
+| Cobrança avulsa       | Só no apartamento lançado (multa, reembolso) |
+
+**Isento** (ex.: síndico, marcado no Cadastro): não paga taxa de condomínio, manutenção nem administração; paga consumo, fundo de reserva e avulsos.
+
+As partes são somadas sem arredondar e só o total de cada apartamento é arredondado para centavos, como na planilha. As despesas não entram na cota: saem do caixa.
 
 **Saldo de cada apartamento:** a pagar no mês = saldo anterior + cota do mês. O que não for pago passa para o mês seguinte; pagamento a mais vira crédito. Pagamento atrasado é lançado no mês em que entrou no banco, sem reabrir o mês antigo.
 
-**Caixa:** saldo do mês = saldo anterior + recebido − despesas. O primeiro saldo anterior é o "Saldo no banco antes do 1º mês" (aba Cadastro); depois, o fechamento de um mês é a abertura do seguinte. Ao informar o extrato, o painel mostra a diferença.
+**Caixa:** saldo do mês = saldo anterior + recebido − despesas. O primeiro saldo anterior é o "Saldo no banco" com a sua data (aba Cadastro); depois, o fechamento de um mês é a abertura do seguinte. Ao informar o extrato, o painel mostra a diferença.
+
+**Despesa paga ou a pagar:** cada despesa tem uma situação. A despesa só sai do dinheiro quando está **paga**, no dia em que saiu do banco (sem data, vale o último dia do mês da despesa). A **a pagar** não sai do dinheiro, mas entra na previsão do fim do mês.
+
+**Data do saldo inicial:** o saldo inicial vale para um dia (o saldo do dia no extrato). Despesa paga até esse dia já está dentro do saldo e não é descontada de novo. Assim o app começa a contar no meio da história do condomínio sem precisar refazer os meses antigos.
+
+**Dinheiro agora e previsão:** dinheiro agora = saldo inicial + recebido − despesas pagas. Previsão do fim do mês = dinheiro agora + a receber dos apartamentos − despesas a pagar.
+
+**Fundo de reserva:** saldo anterior + fundo de reserva cobrado no mês − despesas pagas pelo fundo. O caixa do condomínio é o saldo do banco menos o fundo, e pode ficar negativo.
 
 **Mês fechado** não aceita alteração. Para corrigir, reabra, corrija e feche de novo.
 
@@ -57,6 +74,12 @@ O banco é um Postgres criado dentro da própria Vercel (Neon).
 1. No projeto da Vercel, aba **Storage**, crie um banco **Neon** e conecte ao projeto. A Vercel preenche `DATABASE_URL` sozinha.
 2. Em Settings > Environment Variables, cadastre `CONDO_ADMIN_PASSWORD` e `CONDO_UNITS`.
 3. Faça o deploy (ou Redeploy) e abra o endereço. O quadro aparece vazio; entre em `/sindico` com `admin` e a senha.
+
+### Ambiente de teste
+
+1. Produção (`main`) usa o banco `condo-db`; Preview e Development usam o `condo-db-teste`.
+2. A branch `teste` publica em `gestaocondominio-git-teste-rvcc.vercel.app`, que só abre para quem está logado na Vercel.
+3. Para zerar o teste, apague as linhas de `condo_states` no `condo-db-teste` (ou o banco inteiro). O próximo acesso recria o condomínio com `CONDO_UNITS`.
 
 O build (`pnpm build:vercel`, definido no `vercel.json`) gera `.vercel/output`: o site em `static/` e a API numa função Node em `functions/api.func`.
 

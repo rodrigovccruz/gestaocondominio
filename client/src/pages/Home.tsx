@@ -18,6 +18,8 @@ import {
   type CondoState,
   type Expense,
   type ExpenseCategory,
+  type ExtraCharge,
+  type Tariffs,
   type Month,
   type Payment,
   type Reading,
@@ -28,6 +30,9 @@ import {
   formatM3,
   formatMoney,
   formatMonth,
+  formatPercent,
+  chargesFromTariffs,
+  tariffFeeCents,
   newMonth,
   sortUnits,
   type MonthReport,
@@ -44,12 +49,14 @@ import {
 import { BuildingBoard } from "@/components/condo/building-board";
 import {
   CashLines,
+  ChargeRule,
   QuotaTable,
-  SplitRule,
 } from "@/components/condo/quota-table";
 import {
   createId,
   currentCompetence,
+  formatDate,
+  todayDate,
   isConflictError,
   moneyInput,
   nextCompetence,
@@ -61,10 +68,17 @@ import {
 } from "@/components/condo/condo-utils";
 
 type Saved = { state: CondoState; revision: number };
-type Tab = "painel" | "despesas" | "leituras" | "pagamentos" | "cadastro";
+type Tab =
+  | "painel"
+  | "cobranca"
+  | "despesas"
+  | "leituras"
+  | "pagamentos"
+  | "cadastro";
 
 const TABS: { key: Tab; label: string }[] = [
   { key: "painel", label: "Painel" },
+  { key: "cobranca", label: "Cobrança" },
   { key: "despesas", label: "Despesas" },
   { key: "leituras", label: "Leituras" },
   { key: "pagamentos", label: "Pagamentos" },
@@ -233,42 +247,41 @@ function PainelTab({
   onDelete: () => void;
 }) {
   const { totals, statements, cash, quotas } = report;
-  const toReceive = statements.reduce(
-    (sum, s) => sum + Math.max(0, s.dueCents),
-    0
-  );
   const owing = statements.filter(s => s.balanceCents > 0).length;
 
   return (
     <>
       <div className="metrics">
         <Metric
-          label="Despesas do mês"
-          value={formatMoney(totals.expensesCents)}
-        />
-        <Metric label="A receber" value={formatMoney(toReceive)} />
-        <Metric
           label="Recebido"
           value={formatMoney(cash.receivedCents)}
           detail={owing ? `${owing} apto(s) com saldo devedor` : "Todos em dia"}
           tone={owing ? "bad" : "good"}
         />
-        <Metric label="Saldo em caixa" value={formatMoney(cash.closingCents)} />
+        <Metric label="A receber" value={formatMoney(cash.toReceiveCents)} />
+        <Metric label="Dinheiro agora" value={formatMoney(cash.closingCents)} />
+        <Metric label="A pagar" value={formatMoney(cash.toPayCents)} />
+        <Metric
+          label="Previsão fim do mês"
+          value={formatMoney(cash.projectedCents)}
+          detail="se todos pagarem"
+        />
       </div>
 
       {!report.month.expenses.length ? (
         <Notice>Nenhuma despesa lançada neste mês ainda.</Notice>
       ) : null}
-      {totals.waterBillCents > 0 && totals.waterMilli === 0 ? (
+      {report.month.feeCents === 0 &&
+      report.month.waterPriceCents === 0 &&
+      report.month.gasPriceCents === 0 ? (
         <Notice tone="warn">
-          Conta de água lançada sem consumo nas leituras: está sendo dividida
-          igualmente.
+          Taxa e preços do m³ ainda não definidos. Preencha na aba Cobrança.
         </Notice>
       ) : null}
-      {totals.gasBillCents > 0 && totals.gasMilli === 0 ? (
+      {(totals.waterMilli > 0 && report.month.waterPriceCents === 0) ||
+      (totals.gasMilli > 0 && report.month.gasPriceCents === 0) ? (
         <Notice tone="warn">
-          Conta de gás lançada sem consumo nas leituras: está sendo dividida
-          igualmente.
+          Tem consumo lançado sem preço do m³: confira a aba Cobrança.
         </Notice>
       ) : null}
 
@@ -323,8 +336,8 @@ function PainelTab({
       </Panel>
 
       <Panel title="Composição da cota">
-        <QuotaTable quotas={quotas} />
-        <SplitRule count={quotas.length} />
+        <QuotaTable quotas={quotas} totals={totals} />
+        <ChargeRule />
       </Panel>
 
       <BankCheck
@@ -343,29 +356,313 @@ function PainelTab({
   );
 }
 
+/* ---------- Cobrança ---------- */
+
+type ChargeValues = Pick<
+  Month,
+  | "feeCents"
+  | "maintenanceBp"
+  | "reserveBp"
+  | "adminCents"
+  | "waterPriceCents"
+  | "gasPriceCents"
+>;
+
+const percentInput = (bp: number) => String(bp / 100).replace(".", ",");
+
+function CobrancaTab({
+  month,
+  units,
+  tariffs,
+  locked,
+  onSaveValues,
+  onSaveExtras,
+}: {
+  month: Month;
+  units: Unit[];
+  tariffs: Tariffs;
+  locked: boolean;
+  onSaveValues: (values: ChargeValues) => Promise<boolean>;
+  onSaveExtras: (extras: ExtraCharge[], message: string) => Promise<boolean>;
+}) {
+  const [fee, setFee] = useState(moneyInput(month.feeCents));
+  const [maintenance, setMaintenance] = useState(
+    percentInput(month.maintenanceBp)
+  );
+  const [reserve, setReserve] = useState(percentInput(month.reserveBp));
+  const [admin, setAdmin] = useState(moneyInput(month.adminCents));
+  const [water, setWater] = useState(moneyInput(month.waterPriceCents));
+  const [gas, setGas] = useState(moneyInput(month.gasPriceCents));
+  const [waterBill, setWaterBill] = useState("");
+  const [extraUnit, setExtraUnit] = useState("");
+  const [extraDescription, setExtraDescription] = useState("");
+  const [extraAmount, setExtraAmount] = useState("");
+
+  const numberOf = new Map(units.map(u => [u.id, u.number]));
+  const monthUnits = sortUnits(
+    units.filter(u => month.readings.some(r => r.unitId === u.id))
+  );
+  const waterMilli = month.readings.reduce(
+    (sum, r) => sum + r.waterCurrent - r.waterPrevious,
+    0
+  );
+
+  const save = (event: React.FormEvent) => {
+    event.preventDefault();
+    // Percentual usa o mesmo formato do dinheiro: "15" → 1500, "7,5" → 750.
+    const values = {
+      feeCents: parseMoneyInput(fee || "0"),
+      maintenanceBp: parseMoneyInput(maintenance || "0"),
+      reserveBp: parseMoneyInput(reserve || "0"),
+      adminCents: parseMoneyInput(admin || "0"),
+      waterPriceCents: parseMoneyInput(water || "0"),
+      gasPriceCents: parseMoneyInput(gas || "0"),
+    };
+    if (Object.values(values).some(v => v === null))
+      return void toast.error("Algum valor está inválido.");
+    if (values.maintenanceBp! > 10000 || values.reserveBp! > 10000)
+      return void toast.error("Percentual acima de 100%.");
+    void onSaveValues(values as ChargeValues);
+  };
+
+  const fromBill = () => {
+    const cents = parseMoneyInput(waterBill);
+    if (cents === null || waterMilli <= 0)
+      return void toast.error(
+        waterMilli <= 0
+          ? "Digite as leituras de água antes."
+          : "Valor da conta inválido."
+      );
+    setWater(moneyInput(Math.round((cents * 1000) / waterMilli)));
+  };
+
+  const addExtra = (event: React.FormEvent) => {
+    event.preventDefault();
+    const amountCents = parseMoneyInput(extraAmount);
+    if (!extraUnit) return void toast.error("Escolha o apartamento.");
+    if (!extraDescription.trim())
+      return void toast.error("Informe a descrição.");
+    if (amountCents === null || amountCents === 0)
+      return void toast.error("Valor inválido.");
+    void onSaveExtras(
+      [
+        ...month.extraCharges,
+        {
+          id: createId("avulso"),
+          unitId: extraUnit,
+          description: extraDescription.trim(),
+          amountCents,
+        },
+      ],
+      "Cobrança avulsa lançada."
+    ).then(ok => {
+      if (!ok) return;
+      setExtraDescription("");
+      setExtraAmount("");
+    });
+  };
+
+  const field = (
+    label: string,
+    value: string,
+    onChange: (value: string) => void
+  ) => (
+    <label className="field">
+      <span>{label}</span>
+      <input
+        className="input"
+        inputMode="decimal"
+        placeholder="0"
+        value={value}
+        onChange={event => onChange(event.target.value)}
+        disabled={locked}
+      />
+    </label>
+  );
+
+  return (
+    <>
+      <Panel title="Valores do mês">
+        <form className="stack" onSubmit={save}>
+          <div className="form-grid">
+            {field("Taxa de condomínio por apto (R$)", fee, setFee)}
+            {field(
+              "Fundo de manutenção (% da taxa)",
+              maintenance,
+              setMaintenance
+            )}
+            {field("Fundo de reserva (% da taxa)", reserve, setReserve)}
+            {field("Taxa de administração por apto (R$)", admin, setAdmin)}
+            {field("Preço do m³ de água (R$)", water, setWater)}
+            {field("Preço do m³ de gás (R$)", gas, setGas)}
+          </div>
+          {!locked ? (
+            <div className="form-row">
+              <label className="field grow">
+                <span>
+                  Calcular o preço da água pela conta da Copasa dos aptos (
+                  {formatM3(waterMilli)} m³ no mês)
+                </span>
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  placeholder="Valor da conta, ex.: 438,93"
+                  value={waterBill}
+                  onChange={event => setWaterBill(event.target.value)}
+                />
+              </label>
+              <Button type="button" variant="outline" onClick={fromBill}>
+                Calcular
+              </Button>
+            </div>
+          ) : null}
+          <div className="form-row">
+            <Button type="submit" disabled={locked}>
+              Salvar valores
+            </Button>
+            {!locked ? (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const c = chargesFromTariffs(tariffs);
+                  setFee(moneyInput(c.feeCents));
+                  setMaintenance(percentInput(c.maintenanceBp));
+                  setReserve(percentInput(c.reserveBp));
+                  setAdmin(moneyInput(c.adminCents));
+                  setWater(moneyInput(c.waterPriceCents));
+                  setGas(moneyInput(c.gasPriceCents));
+                  toast.message(
+                    "Tarifas do cadastro preenchidas. Salve para aplicar."
+                  );
+                }}
+              >
+                Usar tarifas do cadastro
+              </Button>
+            ) : null}
+          </div>
+        </form>
+        <p className="muted small">
+          Estes valores valem só para este mês (vieram das tarifas do Cadastro
+          quando o mês foi criado). Taxa de {formatMoney(month.feeCents)},
+          manutenção {formatPercent(month.maintenanceBp)}% e reserva{" "}
+          {formatPercent(month.reserveBp)}% da taxa. Isentos pagam só consumo,
+          fundo de reserva e avulsos.
+        </p>
+      </Panel>
+
+      <Panel title="Cobranças avulsas">
+        {month.extraCharges.length ? (
+          <div className="table-wrap">
+            <table className="data-table">
+              <tbody>
+                {month.extraCharges.map(e => (
+                  <tr key={e.id}>
+                    <td>
+                      <strong>{numberOf.get(e.unitId) ?? "?"}</strong>
+                      <small>{e.description}</small>
+                    </td>
+                    <td className="num">{formatMoney(e.amountCents)}</td>
+                    {!locked ? (
+                      <td className="actions">
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Remover ${e.description}`}
+                          onClick={() => {
+                            if (!window.confirm(`Remover "${e.description}"?`))
+                              return;
+                            void onSaveExtras(
+                              month.extraCharges.filter(x => x.id !== e.id),
+                              "Cobrança avulsa removida."
+                            );
+                          }}
+                        >
+                          <Trash2 size={15} />
+                        </Button>
+                      </td>
+                    ) : null}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="muted">Nenhuma cobrança avulsa neste mês.</p>
+        )}
+        {!locked ? (
+          <form className="form-row" onSubmit={addExtra}>
+            <label className="field">
+              <span>Apto</span>
+              <select
+                className="input"
+                value={extraUnit}
+                onChange={event => setExtraUnit(event.target.value)}
+              >
+                <option value="">Escolha</option>
+                {monthUnits.map(u => (
+                  <option key={u.id} value={u.id}>
+                    {u.number}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field grow">
+              <span>Descrição</span>
+              <input
+                className="input"
+                maxLength={200}
+                placeholder="Ex.: Multa, reembolso"
+                value={extraDescription}
+                onChange={event => setExtraDescription(event.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Valor (R$)</span>
+              <input
+                className="input"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={extraAmount}
+                onChange={event => setExtraAmount(event.target.value)}
+              />
+            </label>
+            <Button type="submit">
+              <Plus size={16} /> Lançar
+            </Button>
+          </form>
+        ) : null}
+      </Panel>
+    </>
+  );
+}
+
 /* ---------- Despesas ---------- */
 
 function DespesasTab({
   month,
   locked,
   onSaveExpenses,
-  onSaveReserve,
 }: {
   month: Month;
   locked: boolean;
   onSaveExpenses: (expenses: Expense[], message: string) => Promise<boolean>;
-  onSaveReserve: (cents: number) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState<ExpenseCategory>("Água");
   const [amount, setAmount] = useState("");
-  const [reserve, setReserve] = useState(moneyInput(month.reservePerUnitCents));
+  const [fromReserve, setFromReserve] = useState(false);
+  const [paid, setPaid] = useState(false);
+  const [paidOn, setPaidOn] = useState(todayDate());
 
   const reset = () => {
     setEditing(null);
     setDescription("");
     setAmount("");
+    setFromReserve(false);
+    setPaid(false);
+    setPaidOn(todayDate());
   };
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -378,6 +675,9 @@ function DespesasTab({
       description: description.trim(),
       category,
       amountCents,
+      fromReserve,
+      paid,
+      paidOn: paid && paidOn ? paidOn : null,
     };
     const expenses = editing
       ? month.expenses.map(e => (e.id === editing ? item : e))
@@ -395,19 +695,23 @@ function DespesasTab({
     setDescription(e.description);
     setCategory(e.category);
     setAmount(moneyInput(e.amountCents));
+    setFromReserve(e.fromReserve);
+    setPaid(e.paid);
+    setPaidOn(e.paidOn ?? todayDate());
   };
+  const markPaid = (e: Expense) =>
+    void onSaveExpenses(
+      month.expenses.map(x =>
+        x.id === e.id ? { ...x, paid: true, paidOn: todayDate() } : x
+      ),
+      `Paga em ${formatDate(todayDate())}. Para outra data, use o lápis.`
+    );
   const remove = (e: Expense) => {
     if (!window.confirm(`Remover "${e.description}"?`)) return;
     void onSaveExpenses(
       month.expenses.filter(x => x.id !== e.id),
       "Despesa removida."
     );
-  };
-  const saveReserve = (event: React.FormEvent) => {
-    event.preventDefault();
-    const cents = parseMoneyInput(reserve || "0");
-    if (cents === null) return void toast.error("Valor inválido.");
-    void onSaveReserve(cents);
   };
   const total = month.expenses.reduce((sum, e) => sum + e.amountCents, 0);
 
@@ -452,6 +756,36 @@ function DespesasTab({
                 onChange={event => setAmount(event.target.value)}
               />
             </label>
+            <label className="field">
+              <span>Situação</span>
+              <select
+                className="input"
+                value={paid ? "paid" : "open"}
+                onChange={event => setPaid(event.target.value === "paid")}
+              >
+                <option value="open">A pagar</option>
+                <option value="paid">Paga</option>
+              </select>
+            </label>
+            {paid ? (
+              <label className="field">
+                <span>Paga em</span>
+                <input
+                  className="input"
+                  type="date"
+                  value={paidOn}
+                  onChange={event => setPaidOn(event.target.value)}
+                />
+              </label>
+            ) : null}
+            <label className="check">
+              <input
+                type="checkbox"
+                checked={fromReserve}
+                onChange={event => setFromReserve(event.target.checked)}
+              />
+              Pago pelo fundo de reserva
+            </label>
             <Button type="submit">
               <Plus size={16} /> {editing ? "Salvar" : "Lançar"}
             </Button>
@@ -462,8 +796,9 @@ function DespesasTab({
             ) : null}
           </form>
           <p className="muted small">
-            Categoria Água ou Gás: dividida pelo consumo dos medidores. As
-            demais: divididas igualmente.
+            A despesa só sai do dinheiro quando está paga. Enquanto estiver a
+            pagar, ela entra na previsão do fim do mês. A cota de cada
+            apartamento é definida na aba Cobrança.
           </p>
         </Panel>
       ) : null}
@@ -477,11 +812,30 @@ function DespesasTab({
                   <tr key={e.id}>
                     <td>
                       {e.description}
-                      <small>{e.category}</small>
+                      <small>
+                        {e.category}
+                        {e.fromReserve ? " · fundo de reserva" : ""}
+                        {" · "}
+                        {e.paid
+                          ? e.paidOn
+                            ? `paga em ${formatDate(e.paidOn)}`
+                            : "paga"
+                          : "a pagar"}
+                      </small>
                     </td>
                     <td className="num">{formatMoney(e.amountCents)}</td>
                     {!locked ? (
                       <td className="actions">
+                        {!e.paid ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Marcar ${e.description} como paga`}
+                            onClick={() => markPaid(e)}
+                          >
+                            Paguei
+                          </Button>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -515,28 +869,6 @@ function DespesasTab({
         ) : (
           <p className="muted">Nenhuma despesa lançada.</p>
         )}
-      </Panel>
-
-      <Panel title="Fundo de reserva">
-        <form className="form-row" onSubmit={saveReserve}>
-          <label className="field">
-            <span>Valor por apartamento neste mês (R$)</span>
-            <input
-              className="input"
-              inputMode="decimal"
-              value={reserve}
-              onChange={event => setReserve(event.target.value)}
-              disabled={locked}
-            />
-          </label>
-          <Button type="submit" variant="outline" disabled={locked}>
-            Salvar
-          </Button>
-        </form>
-        <p className="muted small">
-          Entra na cota de cada apartamento e fica no caixa. Deixe 0,00 se não
-          houver.
-        </p>
       </Panel>
     </>
   );
@@ -814,6 +1146,7 @@ type UnitDraft = {
   number: string;
   resident: string;
   active: boolean;
+  exempt: boolean;
 };
 
 function CadastroTab({
@@ -825,6 +1158,30 @@ function CadastroTab({
 }) {
   const [name, setName] = useState(state.name);
   const [opening, setOpening] = useState(moneyInput(state.openingBalanceCents));
+  const [openingDate, setOpeningDate] = useState(state.openingDate ?? "");
+  const [openingReserve, setOpeningReserve] = useState(
+    moneyInput(state.openingReserveCents)
+  );
+  const t = state.tariffs;
+  const [wage, setWage] = useState(moneyInput(t.minimumWageCents));
+  const [feePct, setFeePct] = useState(percentInput(t.feeBp));
+  const [maintPct, setMaintPct] = useState(percentInput(t.maintenanceBp));
+  const [reservePct, setReservePct] = useState(percentInput(t.reserveBp));
+  const [adminValue, setAdminValue] = useState(moneyInput(t.adminCents));
+  const [waterValue, setWaterValue] = useState(moneyInput(t.waterPriceCents));
+  const [gasValue, setGasValue] = useState(moneyInput(t.gasPriceCents));
+  // Percentual usa o mesmo formato do dinheiro: "22" → 2200, "7,5" → 750.
+  const tariffs = {
+    minimumWageCents: parseMoneyInput(wage || "0"),
+    feeBp: parseMoneyInput(feePct || "0"),
+    maintenanceBp: parseMoneyInput(maintPct || "0"),
+    reserveBp: parseMoneyInput(reservePct || "0"),
+    adminCents: parseMoneyInput(adminValue || "0"),
+    waterPriceCents: parseMoneyInput(waterValue || "0"),
+    gasPriceCents: parseMoneyInput(gasValue || "0"),
+  };
+  const tariffsValid = Object.values(tariffs).every(v => v !== null);
+  const feePreview = tariffsValid ? tariffFeeCents(tariffs as Tariffs) : null;
   const [units, setUnits] = useState<UnitDraft[]>(() => sortUnits(state.units));
 
   const update = (id: string, patch: Partial<UnitDraft>) =>
@@ -834,9 +1191,17 @@ function CadastroTab({
 
   const save = () => {
     const openingBalanceCents = parseSignedMoneyInput(opening);
+    const openingReserveCents = parseSignedMoneyInput(openingReserve || "0");
     if (!name.trim()) return void toast.error("Informe o nome do condomínio.");
-    if (openingBalanceCents === null)
+    if (openingBalanceCents === null || openingReserveCents === null)
       return void toast.error("Saldo inicial inválido.");
+    if (!tariffsValid) return void toast.error("Alguma tarifa está inválida.");
+    if (
+      tariffs.feeBp! > 10000 ||
+      tariffs.maintenanceBp! > 10000 ||
+      tariffs.reserveBp! > 10000
+    )
+      return void toast.error("Percentual acima de 100%.");
     const cleaned = units
       .map(u => ({
         ...u,
@@ -850,6 +1215,9 @@ function CadastroTab({
       ...state,
       name: name.trim(),
       openingBalanceCents,
+      openingDate: openingDate || null,
+      openingReserveCents,
+      tariffs: tariffs as Tariffs,
       units: cleaned,
     });
   };
@@ -868,7 +1236,7 @@ function CadastroTab({
             />
           </label>
           <label className="field">
-            <span>Saldo no banco antes do 1º mês (R$)</span>
+            <span>Saldo no banco nessa data (R$)</span>
             <input
               className="input"
               inputMode="decimal"
@@ -876,7 +1244,65 @@ function CadastroTab({
               onChange={event => setOpening(event.target.value)}
             />
           </label>
+          <label className="field">
+            <span>Data do saldo (saldo do dia no extrato)</span>
+            <input
+              className="input"
+              type="date"
+              value={openingDate}
+              onChange={event => setOpeningDate(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Desse saldo, quanto é do fundo de reserva (R$)</span>
+            <input
+              className="input"
+              inputMode="decimal"
+              value={openingReserve}
+              onChange={event => setOpeningReserve(event.target.value)}
+            />
+          </label>
         </div>
+        <p className="muted small">
+          O app conta o dinheiro a partir dessa data: despesa paga até o dia do
+          saldo já está dentro dele, e despesa sem data de pagamento vale o
+          último dia do mês. O saldo inclui o fundo de reserva; o caixa do
+          condomínio é o saldo menos o fundo.
+        </p>
+      </Panel>
+
+      <Panel title="Tarifas vigentes">
+        <div className="form-grid">
+          {[
+            ["Salário mínimo (R$)", wage, setWage],
+            ["Taxa de condomínio (% do salário mínimo)", feePct, setFeePct],
+            ["Fundo de manutenção (% da taxa)", maintPct, setMaintPct],
+            ["Fundo de reserva (% da taxa)", reservePct, setReservePct],
+            ["Taxa de administração por apto (R$)", adminValue, setAdminValue],
+            ["Preço do m³ de água (R$)", waterValue, setWaterValue],
+            ["Preço do m³ de gás (R$)", gasValue, setGasValue],
+          ].map(([label, value, set]) => (
+            <label className="field" key={label as string}>
+              <span>{label as string}</span>
+              <input
+                className="input"
+                inputMode="decimal"
+                placeholder="0"
+                value={value as string}
+                onChange={event =>
+                  (set as (v: string) => void)(event.target.value)
+                }
+              />
+            </label>
+          ))}
+        </div>
+        <p className="muted small">
+          Taxa de condomínio por apto:{" "}
+          <strong>{feePreview === null ? "–" : formatMoney(feePreview)}</strong>
+          . Cada mês novo copia estas tarifas e guarda a cópia: mudar o salário
+          mínimo não altera meses já criados. A água pode ser ajustada em cada
+          mês pela conta da Copasa (aba Cobrança).
+        </p>
       </Panel>
 
       <Panel
@@ -893,6 +1319,7 @@ function CadastroTab({
                   number: "",
                   resident: "",
                   active: true,
+                  exempt: false,
                 },
               ])
             }
@@ -908,6 +1335,7 @@ function CadastroTab({
                 <th>Número</th>
                 <th>Morador (não aparece no quadro)</th>
                 <th>Ativo</th>
+                <th>Isento</th>
               </tr>
             </thead>
             <tbody>
@@ -945,6 +1373,16 @@ function CadastroTab({
                       }
                     />
                   </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={u.exempt}
+                      aria-label={`Apto ${u.number} isento`}
+                      onChange={event =>
+                        update(u.id, { exempt: event.target.checked })
+                      }
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -952,7 +1390,9 @@ function CadastroTab({
         </div>
         <p className="muted small">
           Apartamento desativado não entra nos próximos meses. Meses já criados
-          não mudam.
+          não mudam. Isento (ex.: síndico) não paga taxa de condomínio,
+          manutenção nem administração; paga consumo, fundo de reserva e
+          avulsos.
         </p>
       </Panel>
       <div>
@@ -1208,6 +1648,20 @@ function Workspace({
             }
             onDelete={deleteMonth}
           />
+        ) : tab === "cobranca" ? (
+          <CobrancaTab
+            key={tabKey}
+            month={month}
+            units={units}
+            tariffs={state.tariffs}
+            locked={locked}
+            onSaveValues={values =>
+              updateMonth(m => ({ ...m, ...values }), "Valores salvos.")
+            }
+            onSaveExtras={(extraCharges, message) =>
+              updateMonth(m => ({ ...m, extraCharges }), message)
+            }
+          />
         ) : tab === "despesas" ? (
           <DespesasTab
             key={tabKey}
@@ -1215,12 +1669,6 @@ function Workspace({
             locked={locked}
             onSaveExpenses={(expenses, message) =>
               updateMonth(m => ({ ...m, expenses }), message)
-            }
-            onSaveReserve={reservePerUnitCents =>
-              updateMonth(
-                m => ({ ...m, reservePerUnitCents }),
-                "Fundo de reserva salvo."
-              )
             }
           />
         ) : tab === "leituras" ? (
