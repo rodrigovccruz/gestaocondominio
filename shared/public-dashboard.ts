@@ -17,6 +17,8 @@ export type PublicMonth = {
     category: ExpenseCategory;
     amountCents: number;
     fromReserve: boolean;
+    paid: boolean;
+    paidOn: string | null;
   }[];
   categories: { category: ExpenseCategory; amountCents: number }[];
   totals: MonthTotals;

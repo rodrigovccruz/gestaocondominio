@@ -72,6 +72,7 @@ function BoardContent({
           label="Dinheiro agora"
           value={formatMoney(month.cash.closingCents)}
         />
+        <Metric label="A pagar" value={formatMoney(month.cash.toPayCents)} />
         <Metric
           label="Previsão fim do mês"
           value={formatMoney(month.cash.projectedCents)}
@@ -96,6 +97,7 @@ function BoardContent({
                       <small>
                         {e.category}
                         {e.fromReserve ? " · fundo de reserva" : ""}
+                        {e.paid ? "" : " · a pagar"}
                       </small>
                     </td>
                     <td className="num">{formatMoney(e.amountCents)}</td>

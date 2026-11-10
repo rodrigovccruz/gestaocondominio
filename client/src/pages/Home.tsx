@@ -55,6 +55,8 @@ import {
 import {
   createId,
   currentCompetence,
+  formatDate,
+  todayDate,
   isConflictError,
   moneyInput,
   nextCompetence,
@@ -258,6 +260,7 @@ function PainelTab({
         />
         <Metric label="A receber" value={formatMoney(cash.toReceiveCents)} />
         <Metric label="Dinheiro agora" value={formatMoney(cash.closingCents)} />
+        <Metric label="A pagar" value={formatMoney(cash.toPayCents)} />
         <Metric
           label="Previsão fim do mês"
           value={formatMoney(cash.projectedCents)}
@@ -650,12 +653,16 @@ function DespesasTab({
   const [category, setCategory] = useState<ExpenseCategory>("Água");
   const [amount, setAmount] = useState("");
   const [fromReserve, setFromReserve] = useState(false);
+  const [paid, setPaid] = useState(false);
+  const [paidOn, setPaidOn] = useState(todayDate());
 
   const reset = () => {
     setEditing(null);
     setDescription("");
     setAmount("");
     setFromReserve(false);
+    setPaid(false);
+    setPaidOn(todayDate());
   };
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -669,6 +676,8 @@ function DespesasTab({
       category,
       amountCents,
       fromReserve,
+      paid,
+      paidOn: paid && paidOn ? paidOn : null,
     };
     const expenses = editing
       ? month.expenses.map(e => (e.id === editing ? item : e))
@@ -687,7 +696,16 @@ function DespesasTab({
     setCategory(e.category);
     setAmount(moneyInput(e.amountCents));
     setFromReserve(e.fromReserve);
+    setPaid(e.paid);
+    setPaidOn(e.paidOn ?? todayDate());
   };
+  const markPaid = (e: Expense) =>
+    void onSaveExpenses(
+      month.expenses.map(x =>
+        x.id === e.id ? { ...x, paid: true, paidOn: todayDate() } : x
+      ),
+      `Paga em ${formatDate(todayDate())}. Para outra data, use o lápis.`
+    );
   const remove = (e: Expense) => {
     if (!window.confirm(`Remover "${e.description}"?`)) return;
     void onSaveExpenses(
@@ -738,6 +756,28 @@ function DespesasTab({
                 onChange={event => setAmount(event.target.value)}
               />
             </label>
+            <label className="field">
+              <span>Situação</span>
+              <select
+                className="input"
+                value={paid ? "paid" : "open"}
+                onChange={event => setPaid(event.target.value === "paid")}
+              >
+                <option value="open">A pagar</option>
+                <option value="paid">Paga</option>
+              </select>
+            </label>
+            {paid ? (
+              <label className="field">
+                <span>Paga em</span>
+                <input
+                  className="input"
+                  type="date"
+                  value={paidOn}
+                  onChange={event => setPaidOn(event.target.value)}
+                />
+              </label>
+            ) : null}
             <label className="check">
               <input
                 type="checkbox"
@@ -756,8 +796,9 @@ function DespesasTab({
             ) : null}
           </form>
           <p className="muted small">
-            As despesas saem do caixa do condomínio (ou do fundo de reserva, se
-            marcado). A cota de cada apartamento é definida na aba Cobrança.
+            A despesa só sai do dinheiro quando está paga. Enquanto estiver a
+            pagar, ela entra na previsão do fim do mês. A cota de cada
+            apartamento é definida na aba Cobrança.
           </p>
         </Panel>
       ) : null}
@@ -774,11 +815,27 @@ function DespesasTab({
                       <small>
                         {e.category}
                         {e.fromReserve ? " · fundo de reserva" : ""}
+                        {" · "}
+                        {e.paid
+                          ? e.paidOn
+                            ? `paga em ${formatDate(e.paidOn)}`
+                            : "paga"
+                          : "a pagar"}
                       </small>
                     </td>
                     <td className="num">{formatMoney(e.amountCents)}</td>
                     {!locked ? (
                       <td className="actions">
+                        {!e.paid ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            aria-label={`Marcar ${e.description} como paga`}
+                            onClick={() => markPaid(e)}
+                          >
+                            Paguei
+                          </Button>
+                        ) : null}
                         <Button
                           variant="ghost"
                           size="icon-sm"
@@ -1101,6 +1158,7 @@ function CadastroTab({
 }) {
   const [name, setName] = useState(state.name);
   const [opening, setOpening] = useState(moneyInput(state.openingBalanceCents));
+  const [openingDate, setOpeningDate] = useState(state.openingDate ?? "");
   const [openingReserve, setOpeningReserve] = useState(
     moneyInput(state.openingReserveCents)
   );
@@ -1157,6 +1215,7 @@ function CadastroTab({
       ...state,
       name: name.trim(),
       openingBalanceCents,
+      openingDate: openingDate || null,
       openingReserveCents,
       tariffs: tariffs as Tariffs,
       units: cleaned,
@@ -1177,12 +1236,21 @@ function CadastroTab({
             />
           </label>
           <label className="field">
-            <span>Saldo no banco antes do 1º mês (R$)</span>
+            <span>Saldo no banco nessa data (R$)</span>
             <input
               className="input"
               inputMode="decimal"
               value={opening}
               onChange={event => setOpening(event.target.value)}
+            />
+          </label>
+          <label className="field">
+            <span>Data do saldo (saldo do dia no extrato)</span>
+            <input
+              className="input"
+              type="date"
+              value={openingDate}
+              onChange={event => setOpeningDate(event.target.value)}
             />
           </label>
           <label className="field">
@@ -1196,8 +1264,10 @@ function CadastroTab({
           </label>
         </div>
         <p className="muted small">
-          O saldo no banco inclui o fundo de reserva. O caixa do condomínio é o
-          saldo menos o fundo (pode ficar negativo).
+          O app conta o dinheiro a partir dessa data: despesa paga até o dia do
+          saldo já está dentro dele, e despesa sem data de pagamento vale o
+          último dia do mês. O saldo inclui o fundo de reserva; o caixa do
+          condomínio é o saldo menos o fundo.
         </p>
       </Panel>
 

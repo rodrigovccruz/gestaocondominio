@@ -193,3 +193,90 @@ describe("tarifas vigentes no cadastro", () => {
     expect(nov.gasPriceCents).toBe(2363);
   });
 });
+
+describe("saldo inicial com data e despesas pagas", () => {
+  const cotas = (state: CondoState) =>
+    calculateQuotas(state.months[0], state.units).quotas;
+
+  it("despesa paga até a data do saldo inicial já está no saldo", () => {
+    // Extrato: R$ 3.130,85 em 29/10, sem movimento até 31/10. As despesas de
+    // outubro já tinham saído (sem data de pagamento, valem o fim do mês).
+    const base: CondoState = {
+      ...state,
+      openingBalanceCents: 313085,
+      openingReserveCents: 0,
+      openingDate: "2026-10-31",
+      months: [
+        {
+          ...state.months[0],
+          payments: cotas(state)
+            .filter(q => q.number !== "102" && q.number !== "201")
+            .map(q => ({ unitId: q.unitId, amountCents: q.totalCents })),
+        },
+      ],
+    };
+    const { cash } = buildReports(base)[0];
+    expect(cash.expensesCents).toBe(0);
+    expect(cash.receivedCents).toBe(461478); // 8 cotas
+    expect(cash.closingCents).toBe(313085 + 461478); // R$ 7.745,63
+    expect(cash.toReceiveCents).toBe(119306); // 102 e 201
+    expect(cash.toPayCents).toBe(0);
+  });
+
+  it("despesa a pagar não sai do caixa agora, mas entra na previsão", () => {
+    const m = state.months[0];
+    const open: CondoState = {
+      ...state,
+      months: [
+        {
+          ...m,
+          expenses: m.expenses.map((e, i) =>
+            i === 0 ? { ...e, paid: false } : e
+          ),
+        },
+      ],
+    };
+    const before = buildReports(state)[0].cash;
+    const after = buildReports(open)[0].cash;
+    expect(after.toPayCents).toBe(43893);
+    expect(after.closingCents).toBe(before.closingCents + 43893);
+    expect(after.projectedCents).toBe(before.projectedCents);
+  });
+
+  it("despesa de outubro paga em novembro sai do caixa de novembro", () => {
+    const oct = state.months[0];
+    const nov = newMonth(state, "2026-11", "nov");
+    const paidInNov: CondoState = {
+      ...state,
+      months: [
+        {
+          ...oct,
+          expenses: oct.expenses.map((e, i) =>
+            i === 0 ? { ...e, paidOn: "2026-11-05" } : e
+          ),
+        },
+        nov,
+      ],
+    };
+    const [r1, r2] = buildReports(paidInNov);
+    expect(r1.cash.expensesCents).toBe(514215 - 43893);
+    expect(r2.cash.expensesCents).toBe(43893);
+    expect(r2.cash.closingCents).toBe(r2.cash.openingCents - 43893);
+  });
+
+  it("pago depois do último mês criado conta no último mês", () => {
+    const m = state.months[0];
+    const late: CondoState = {
+      ...state,
+      months: [
+        {
+          ...m,
+          expenses: m.expenses.map((e, i) =>
+            i === 0 ? { ...e, paidOn: "2026-12-20" } : e
+          ),
+        },
+      ],
+    };
+    expect(buildReports(late)[0].cash.expensesCents).toBe(514215);
+  });
+});

@@ -62,6 +62,24 @@ export function currentCompetence(now = new Date()) {
   return `${year}-${month}`;
 }
 
+/** Hoje no fuso de Brasília, como AAAA-MM-DD. */
+export function todayDate(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const get = (type: string) => parts.find(p => p.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/** "2026-10-31" → "31/10/2026". */
+export function formatDate(iso: string) {
+  const [year, month, day] = iso.split("-");
+  return `${day}/${month}/${year}`;
+}
+
 export function isConflictError(error: unknown) {
   const maybe = error as { data?: { code?: string } } | null;
   return maybe?.data?.code === "CONFLICT";

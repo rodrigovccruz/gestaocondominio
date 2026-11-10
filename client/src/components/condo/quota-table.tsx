@@ -127,6 +127,10 @@ export function CashLines({ cash }: { cash: PublicCash }) {
         <dt>A receber dos apartamentos</dt>
         <dd className="good">+ {formatMoney(cash.toReceiveCents)}</dd>
       </div>
+      <div>
+        <dt>A pagar (despesas ainda não pagas)</dt>
+        <dd className="bad">− {formatMoney(cash.toPayCents)}</dd>
+      </div>
       <div className="lines-total">
         <dt>Previsão ao fim do mês (se todos pagarem)</dt>
         <dd>{formatMoney(cash.projectedCents)}</dd>

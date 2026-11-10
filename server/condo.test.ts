@@ -251,6 +251,7 @@ describe("condo router e persistência", () => {
     expect(parseState(JSON.stringify(legacy))).toEqual({
       name: "Condomínio San Gimignano",
       openingBalanceCents: 0,
+      openingDate: null,
       openingReserveCents: 0,
       tariffs: emptyTariffs,
       units: [

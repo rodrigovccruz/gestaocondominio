@@ -183,7 +183,9 @@ export type CashSummary = {
   reserveClosingCents: number;
   /** O que os apartamentos ainda devem (do mês e de antes). */
   toReceiveCents: number;
-  /** Previsão do saldo ao fim do mês, se todos pagarem. */
+  /** Despesas lançadas que ainda não saíram do banco. */
+  toPayCents: number;
+  /** Previsão do saldo ao fim do mês, se todos pagarem e as contas forem pagas. */
   projectedCents: number;
   /** Parte da previsão que fica para o condomínio (previsão − fundo). */
   projectedCondoCents: number;
@@ -202,13 +204,41 @@ export type MonthReport = {
  * saldo do banco (fechamento vira abertura do mês seguinte) e
  * saldo de cada apartamento (quem não pagou carrega a diferença).
  */
+/** Último dia do mês "AAAA-MM", como "AAAA-MM-DD". */
+function lastDayOf(competence: string) {
+  const [year, month] = competence.split("-").map(Number);
+  const day = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${competence}-${String(day).padStart(2, "0")}`;
+}
+
 export function buildReports(state: CondoState): MonthReport[] {
   const units = sortUnits(state.units);
   const unitBalance = new Map<string, number>();
   let cash = state.openingBalanceCents;
   let reserve = state.openingReserveCents;
 
-  return sortMonthsAsc(state.months).map(month => {
+  const months = sortMonthsAsc(state.months);
+  // O dinheiro de uma despesa sai no dia em que foi paga, não no mês em que foi lançada.
+  const cashOut = months.map(() => ({ total: 0, reserve: 0 }));
+  const toPayBy = months.map(() => 0);
+  months.forEach((month, monthIndex) => {
+    for (const e of month.expenses) {
+      // Só "paid: false" é a pagar; sem o campo (estado antigo), vale como paga.
+      if (e.paid === false) {
+        for (let i = monthIndex; i < months.length; i++)
+          toPayBy[i] += e.amountCents;
+        continue;
+      }
+      const date = e.paidOn ?? lastDayOf(month.competence);
+      if (state.openingDate && date <= state.openingDate) continue;
+      const target = months.findIndex(m => m.competence >= date.slice(0, 7));
+      const slot = cashOut[target === -1 ? months.length - 1 : target];
+      slot.total += e.amountCents;
+      if (e.fromReserve) slot.reserve += e.amountCents;
+    }
+  });
+
+  return months.map((month, index) => {
     const { quotas, totals } = calculateQuotas(month, units);
     const quotaOf = new Map(quotas.map(q => [q.unitId, q.totalCents]));
     const paidOf = new Map(month.payments.map(p => [p.unitId, p.amountCents]));
@@ -244,11 +274,13 @@ export function buildReports(state: CondoState): MonthReport[] {
       0
     );
     const openingCents = cash;
-    const closingCents = openingCents + receivedCents - totals.expensesCents;
+    const paidOutCents = cashOut[index].total;
+    const toPayCents = toPayBy[index];
+    const closingCents = openingCents + receivedCents - paidOutCents;
     cash = closingCents;
     const reserveOpeningCents = reserve;
     const reserveClosingCents =
-      reserveOpeningCents + totals.reserveCents - totals.reserveExpensesCents;
+      reserveOpeningCents + totals.reserveCents - cashOut[index].reserve;
     reserve = reserveClosingCents;
 
     return {
@@ -259,7 +291,7 @@ export function buildReports(state: CondoState): MonthReport[] {
       cash: {
         openingCents,
         receivedCents,
-        expensesCents: totals.expensesCents,
+        expensesCents: paidOutCents,
         closingCents,
         bankCents: month.bankBalanceCents,
         differenceCents:
@@ -270,12 +302,13 @@ export function buildReports(state: CondoState): MonthReport[] {
         condoClosingCents: closingCents - reserveClosingCents,
         reserveOpeningCents,
         reserveInCents: totals.reserveCents,
-        reserveOutCents: totals.reserveExpensesCents,
+        reserveOutCents: cashOut[index].reserve,
         reserveClosingCents,
         toReceiveCents,
-        projectedCents: closingCents + toReceiveCents,
+        toPayCents,
+        projectedCents: closingCents + toReceiveCents - toPayCents,
         projectedCondoCents:
-          closingCents + toReceiveCents - reserveClosingCents,
+          closingCents + toReceiveCents - toPayCents - reserveClosingCents,
       },
     };
   });

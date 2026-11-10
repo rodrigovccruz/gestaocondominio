@@ -125,6 +125,7 @@ describe("quadro público", () => {
       reserveClosingCents: 0,
       // 101 pagou janeiro; fevereiro ninguém pagou: 3500 + 1500 × 2
       toReceiveCents: 6500,
+      toPayCents: 0,
       projectedCents: 10000 + 3500 - 5000 - 5000 + 6500,
       projectedCondoCents: 10000 + 3500 - 5000 - 5000 + 6500,
     });

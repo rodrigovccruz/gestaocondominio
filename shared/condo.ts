@@ -20,6 +20,9 @@ const id = z.string().min(1).max(80);
 const money = z.number().int().min(0).max(100_000_000);
 const signedMoney = z.number().int().min(-100_000_000).max(100_000_000);
 const reading = z.number().int().min(0).max(1_000_000_000);
+const isoDate = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/);
 /** Percentual em pontos-base: 1500 = 15%. */
 const basisPoints = z.number().int().min(0).max(10_000);
 
@@ -56,6 +59,13 @@ export const expenseSchema = z.object({
   amountCents: money,
   /** Paga com o dinheiro do fundo de reserva. */
   fromReserve: z.boolean().default(false),
+  /** false = a pagar: ainda não saiu do banco. */
+  paid: z.boolean().default(true),
+  /**
+   * Dia em que saiu do banco. Sem data, vale o último dia do mês da despesa.
+   * Despesa paga até a data do saldo inicial já está dentro desse saldo.
+   */
+  paidOn: isoDate.nullable().default(null),
 });
 
 /** Cobrança avulsa de um apartamento no mês (multa, reembolso, etc.). */
@@ -122,6 +132,8 @@ const baseStateSchema = z
     name: z.string().trim().min(1).max(120),
     /** Saldo da conta do condomínio antes do primeiro mês lançado. */
     openingBalanceCents: signedMoney,
+    /** Dia a que se refere o saldo inicial (o saldo do dia, no extrato). */
+    openingDate: isoDate.nullable().default(null),
     /** Quanto do saldo inicial pertence ao fundo de reserva. */
     openingReserveCents: signedMoney.default(0),
     tariffs: tariffsSchema.default(emptyTariffs),
@@ -209,6 +221,7 @@ export type CondoState = z.infer<typeof baseStateSchema>;
 export const initialState: CondoState = {
   name: "Condomínio San Gimignano",
   openingBalanceCents: 0,
+  openingDate: null,
   openingReserveCents: 0,
   tariffs: emptyTariffs,
   units: [],

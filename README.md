@@ -38,7 +38,13 @@ As partes são somadas sem arredondar e só o total de cada apartamento é arred
 
 **Saldo de cada apartamento:** a pagar no mês = saldo anterior + cota do mês. O que não for pago passa para o mês seguinte; pagamento a mais vira crédito. Pagamento atrasado é lançado no mês em que entrou no banco, sem reabrir o mês antigo.
 
-**Caixa:** saldo do mês = saldo anterior + recebido − despesas. O primeiro saldo anterior é o "Saldo no banco antes do 1º mês" (aba Cadastro); depois, o fechamento de um mês é a abertura do seguinte. Ao informar o extrato, o painel mostra a diferença.
+**Caixa:** saldo do mês = saldo anterior + recebido − despesas. O primeiro saldo anterior é o "Saldo no banco" com a sua data (aba Cadastro); depois, o fechamento de um mês é a abertura do seguinte. Ao informar o extrato, o painel mostra a diferença.
+
+**Despesa paga ou a pagar:** cada despesa tem uma situação. A despesa só sai do dinheiro quando está **paga**, no dia em que saiu do banco (sem data, vale o último dia do mês da despesa). A **a pagar** não sai do dinheiro, mas entra na previsão do fim do mês.
+
+**Data do saldo inicial:** o saldo inicial vale para um dia (o saldo do dia no extrato). Despesa paga até esse dia já está dentro do saldo e não é descontada de novo. Assim o app começa a contar no meio da história do condomínio sem precisar refazer os meses antigos.
+
+**Dinheiro agora e previsão:** dinheiro agora = saldo inicial + recebido − despesas pagas. Previsão do fim do mês = dinheiro agora + a receber dos apartamentos − despesas a pagar.
 
 **Fundo de reserva:** saldo anterior + fundo de reserva cobrado no mês − despesas pagas pelo fundo. O caixa do condomínio é o saldo do banco menos o fundo, e pode ficar negativo.
 

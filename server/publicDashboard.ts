@@ -44,6 +44,8 @@ export function toPublicDashboard(
         category: e.category,
         amountCents: e.amountCents,
         fromReserve: e.fromReserve,
+        paid: e.paid,
+        paidOn: e.paidOn,
       })),
       categories: EXPENSE_CATEGORIES.map(category => ({
         category,
@@ -65,6 +67,7 @@ export function toPublicDashboard(
         reserveOutCents: cash.reserveOutCents,
         reserveClosingCents: cash.reserveClosingCents,
         toReceiveCents: cash.toReceiveCents,
+        toPayCents: cash.toPayCents,
         projectedCents: cash.projectedCents,
         projectedCondoCents: cash.projectedCondoCents,
       },
