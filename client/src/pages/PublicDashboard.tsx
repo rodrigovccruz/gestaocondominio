@@ -82,7 +82,7 @@ function BoardContent({
 
       <Panel title="Composição da cota">
         <QuotaTable quotas={month.quotas} totals={month.totals} />
-        <ChargeRule />
+        <ChargeRule condoWater={month.totals.condoWaterCents !== null} />
       </Panel>
 
       <Panel title="Despesas">

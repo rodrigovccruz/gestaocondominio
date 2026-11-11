@@ -301,6 +301,10 @@ select:focus-visible {
   font-size: 12px;
   color: var(--muted-ink);
 }
+.data-table tr.condo-row td,
+.data-table tr.condo-row td:first-child {
+  background: var(--secondary);
+}
 .data-table td .badge {
   margin-top: 4px;
 }
