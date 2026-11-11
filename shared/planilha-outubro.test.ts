@@ -107,6 +107,8 @@ describe("outubro/2026 igual à planilha", () => {
     expect(totals.adminCents).toBe(24075); // administração R$ 240,75
     expect(totals.waterCents).toBe(43893); // água R$ 438,93
     expect(totals.gasCents).toBe(31390); // gás R$ 313,90
+    // Copasa R$ 496,07 (aptos + condomínio) menos a água dos aptos: R$ 57,14
+    expect(totals.condoWaterCents).toBe(5714);
     expect(totals.expensesCents).toBe(514215); // despesas R$ 5.142,15
     expect(quotas.find(q => q.number === "101")).toMatchObject({
       exempt: true,
@@ -135,6 +137,41 @@ describe("outubro/2026 igual à planilha", () => {
     expect(cash.reserveClosingCents).toBe(1206905); // R$ 12.069,05
     expect(cash.condoClosingCents).toBe(-1018778); // −R$ 10.187,78
     expect(cash.closingCents).toBe(1206905 - 1018778);
+  });
+});
+
+describe("linha do condomínio na água", () => {
+  it("sem despesa de água lançada, não há linha do condomínio", () => {
+    const m = state.months[0];
+    const semAgua = {
+      ...m,
+      expenses: m.expenses.filter(e => e.category !== "Água"),
+    };
+    expect(
+      calculateQuotas(semAgua, state.units).totals.condoWaterCents
+    ).toBeNull();
+  });
+
+  it("uma conta só da Copasa dá a mesma parte do condomínio", () => {
+    const m = state.months[0];
+    const umaConta = {
+      ...m,
+      expenses: [
+        ...m.expenses.filter(e => e.category !== "Água"),
+        {
+          id: "copasa",
+          description: "Copasa",
+          category: "Água" as const,
+          amountCents: 49607,
+          fromReserve: false,
+          paid: false,
+          paidOn: null,
+        },
+      ],
+    };
+    expect(calculateQuotas(umaConta, state.units).totals.condoWaterCents).toBe(
+      5714
+    );
   });
 });
 

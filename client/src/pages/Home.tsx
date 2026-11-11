@@ -338,7 +338,7 @@ function PainelTab({
 
       <Panel title="Composição da cota">
         <QuotaTable quotas={quotas} totals={totals} />
-        <ChargeRule />
+        <ChargeRule condoWater={totals.condoWaterCents !== null} />
       </Panel>
 
       <BankCheck

@@ -47,6 +47,24 @@ export function QuotaTable({
           </tr>
         </thead>
         <tbody>
+          {totals.condoWaterCents !== null ? (
+            <tr className="condo-row">
+              <td>
+                <strong>Condomínio</strong>
+                <small>áreas comuns</small>
+              </td>
+              <td className="num">
+                <strong>{formatMoney(totals.condoWaterCents)}</strong>
+              </td>
+              <td className="num">{formatMoney(totals.condoWaterCents)}</td>
+              <td className="num">–</td>
+              {columns.map(c => (
+                <td key={c.key} className="num">
+                  –
+                </td>
+              ))}
+            </tr>
+          ) : null}
           {quotas.map(q => (
             <tr key={q.number}>
               <td>
@@ -74,7 +92,7 @@ export function QuotaTable({
         </tbody>
         <tfoot>
           <tr>
-            <td>Total</td>
+            <td>{totals.condoWaterCents !== null ? "Total aptos" : "Total"}</td>
             <td className="num">{formatMoney(totals.quotasCents)}</td>
             <td className="num">
               {formatMoney(totals.waterCents)}
@@ -88,7 +106,7 @@ export function QuotaTable({
               <td key={c.key} className="num">
                 {formatMoney(
                   c.key in totals
-                    ? totals[c.key as keyof MonthTotals]
+                    ? Number(totals[c.key as keyof MonthTotals])
                     : sum(q => Number(q[c.key]))
                 )}
               </td>
@@ -159,12 +177,15 @@ export function CashLines({ cash }: { cash: PublicCash }) {
   );
 }
 
-export function ChargeRule() {
+export function ChargeRule({ condoWater = false }: { condoWater?: boolean }) {
   return (
     <p className="muted small">
       Água e gás: consumo × preço do m³. Taxa de condomínio e administração:
       valor fixo. Manutenção e reserva: percentual da taxa. Isento paga só
       consumo, fundo de reserva e avulsos.
+      {condoWater
+        ? " A linha do condomínio é a parte da conta de água que os apartamentos não pagam: sai do caixa e não entra no total dos apartamentos."
+        : ""}
     </p>
   );
 }

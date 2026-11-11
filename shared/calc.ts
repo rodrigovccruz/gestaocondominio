@@ -58,6 +58,12 @@ export type MonthTotals = {
   expensesCents: number;
   /** Despesas pagas com o fundo de reserva. */
   reserveExpensesCents: number;
+  /**
+   * Parte da conta de água que os apartamentos não pagam (áreas comuns):
+   * despesas da categoria Água menos a água cobrada dos apartamentos.
+   * null quando o mês não tem despesa de Água lançada.
+   */
+  condoWaterCents: number | null;
 };
 
 /** Valores em 1/10000 de centavo, para somar sem arredondar. */
@@ -128,6 +134,9 @@ export function calculateQuotas(
   const sum = (pick: (q: UnitQuota) => number) =>
     quotas.reduce((total, q) => total + pick(q), 0);
   const expensesCents = month.expenses.reduce((t, e) => t + e.amountCents, 0);
+  const waterBillCents = month.expenses
+    .filter(e => e.category === "Água")
+    .reduce((t, e) => t + e.amountCents, 0);
   return {
     quotas,
     totals: {
@@ -146,6 +155,8 @@ export function calculateQuotas(
       reserveExpensesCents: month.expenses
         .filter(e => e.fromReserve)
         .reduce((t, e) => t + e.amountCents, 0),
+      condoWaterCents:
+        waterBillCents > 0 ? waterBillCents - toCents(waterScaled) : null,
     },
   };
 }
