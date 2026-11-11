@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  Check,
   DoorOpen,
   LockKeyhole,
   LogOut,
@@ -815,13 +816,16 @@ function DespesasTab({
                       <small>
                         {e.category}
                         {e.fromReserve ? " · fundo de reserva" : ""}
-                        {" · "}
-                        {e.paid
-                          ? e.paidOn
-                            ? `paga em ${formatDate(e.paidOn)}`
-                            : "paga"
-                          : "a pagar"}
                       </small>
+                      {e.paid ? (
+                        <Badge tone="ok">
+                          {e.paidOn
+                            ? `Paga em ${formatDate(e.paidOn)}`
+                            : "Paga"}
+                        </Badge>
+                      ) : (
+                        <Badge tone="open">A pagar</Badge>
+                      )}
                     </td>
                     <td className="num">{formatMoney(e.amountCents)}</td>
                     {!locked ? (
@@ -829,11 +833,12 @@ function DespesasTab({
                         {!e.paid ? (
                           <Button
                             variant="outline"
-                            size="sm"
+                            size="icon-sm"
                             aria-label={`Marcar ${e.description} como paga`}
+                            title="Marcar como paga hoje"
                             onClick={() => markPaid(e)}
                           >
-                            Paguei
+                            <Check size={15} />
                           </Button>
                         ) : null}
                         <Button

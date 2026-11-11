@@ -301,6 +301,9 @@ select:focus-visible {
   font-size: 12px;
   color: var(--muted-ink);
 }
+.data-table td .badge {
+  margin-top: 4px;
+}
 .data-table tfoot td {
   border-bottom: 0;
   font-weight: 800;
