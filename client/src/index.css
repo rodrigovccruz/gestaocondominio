@@ -369,6 +369,16 @@ select:focus-visible {
 .lines .lines-total + div {
   border-top: 1px solid var(--line);
 }
+.lines .sub {
+  padding-left: 18px;
+}
+.lines .sub dt,
+.lines .sub dd {
+  font-size: 15px;
+}
+.lines .gap {
+  border-top: 1px solid var(--line);
+}
 .lines dt small {
   font-size: 12px;
 }
