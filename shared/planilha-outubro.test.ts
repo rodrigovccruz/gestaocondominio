@@ -183,6 +183,13 @@ describe("previsão do caixa sem pagamentos lançados", () => {
     expect(cash.projectedCents).toBe(188127); // R$ 1.881,27
     expect(cash.reserveClosingCents).toBe(1206905); // R$ 12.069,05
     expect(cash.projectedCondoCents).toBe(-1018778); // −R$ 10.187,78
+    // A conta corrente é sempre o fundo de reserva mais o condomínio.
+    expect(cash.reserveClosingCents + cash.condoClosingCents).toBe(
+      cash.closingCents
+    );
+    expect(cash.reserveClosingCents + cash.projectedCondoCents).toBe(
+      cash.projectedCents
+    );
   });
 });
 

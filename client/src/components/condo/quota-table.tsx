@@ -119,10 +119,13 @@ export function QuotaTable({
 }
 
 /**
- * Caixa do mês: o dinheiro que existe agora e a previsão ao fim do mês se
- * todos pagarem, com a parte do fundo de reserva e a do condomínio.
+ * Caixa do mês. A conta corrente (dinheiro agora) é a soma do fundo de reserva
+ * e do condomínio; a previsão do fim do mês tem a mesma divisão.
  */
 export function CashLines({ cash }: { cash: PublicCash }) {
+  const money = (cents: number) => (
+    <dd className={cents < 0 ? "bad" : undefined}>{formatMoney(cents)}</dd>
+  );
   return (
     <dl className="lines">
       <div>
@@ -138,22 +141,10 @@ export function CashLines({ cash }: { cash: PublicCash }) {
         <dd className="bad">− {formatMoney(cash.expensesCents)}</dd>
       </div>
       <div className="lines-total">
-        <dt>Dinheiro agora</dt>
-        <dd>{formatMoney(cash.closingCents)}</dd>
+        <dt>Conta corrente (dinheiro agora)</dt>
+        {money(cash.closingCents)}
       </div>
-      <div>
-        <dt>A receber dos apartamentos</dt>
-        <dd className="good">+ {formatMoney(cash.toReceiveCents)}</dd>
-      </div>
-      <div>
-        <dt>A pagar (despesas ainda não pagas)</dt>
-        <dd className="bad">− {formatMoney(cash.toPayCents)}</dd>
-      </div>
-      <div className="lines-total">
-        <dt>Previsão ao fim do mês (se todos pagarem)</dt>
-        <dd>{formatMoney(cash.projectedCents)}</dd>
-      </div>
-      <div>
+      <div className="sub">
         <dt>
           Fundo de reserva
           <small>
@@ -165,13 +156,31 @@ export function CashLines({ cash }: { cash: PublicCash }) {
             no mês)
           </small>
         </dt>
-        <dd>{formatMoney(cash.reserveClosingCents)}</dd>
+        {money(cash.reserveClosingCents)}
+      </div>
+      <div className="sub">
+        <dt>Condomínio</dt>
+        {money(cash.condoClosingCents)}
+      </div>
+      <div className="gap">
+        <dt>A receber dos apartamentos</dt>
+        <dd className="good">+ {formatMoney(cash.toReceiveCents)}</dd>
       </div>
       <div>
-        <dt>Condomínio (previsão − fundo)</dt>
-        <dd className={cash.projectedCondoCents < 0 ? "bad" : undefined}>
-          {formatMoney(cash.projectedCondoCents)}
-        </dd>
+        <dt>A pagar (despesas ainda não pagas)</dt>
+        <dd className="bad">− {formatMoney(cash.toPayCents)}</dd>
+      </div>
+      <div className="lines-total">
+        <dt>Previsão ao fim do mês (se todos pagarem)</dt>
+        {money(cash.projectedCents)}
+      </div>
+      <div className="sub">
+        <dt>Fundo de reserva</dt>
+        {money(cash.reserveClosingCents)}
+      </div>
+      <div className="sub">
+        <dt>Condomínio</dt>
+        {money(cash.projectedCondoCents)}
       </div>
     </dl>
   );
