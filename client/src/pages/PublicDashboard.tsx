@@ -2,6 +2,7 @@ import { useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  Badge,
   Brand,
   Metric,
   MonthStatus,
@@ -14,6 +15,7 @@ import {
   ChargeRule,
 } from "@/components/condo/quota-table";
 import { BuildingBoard } from "@/components/condo/building-board";
+import { formatDate } from "@/components/condo/condo-utils";
 import { trpc } from "@/lib/trpc";
 import { formatMoney, formatMonth } from "@shared/calc";
 import type { PublicDashboard as Board } from "@shared/public-dashboard";
@@ -97,8 +99,16 @@ function BoardContent({
                       <small>
                         {e.category}
                         {e.fromReserve ? " · fundo de reserva" : ""}
-                        {e.paid ? "" : " · a pagar"}
                       </small>
+                      {e.paid ? (
+                        <Badge tone="ok">
+                          {e.paidOn
+                            ? `Paga em ${formatDate(e.paidOn)}`
+                            : "Paga"}
+                        </Badge>
+                      ) : (
+                        <Badge tone="open">A pagar</Badge>
+                      )}
                     </td>
                     <td className="num">{formatMoney(e.amountCents)}</td>
                   </tr>
